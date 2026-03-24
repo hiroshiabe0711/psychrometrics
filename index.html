@@ -650,9 +650,12 @@ function buildGeo(W, H, f) {
     ox2: 5.2*f, oy2: 0.5*f };
 }
 
+// 物理量 → chart座標 (geoに依存、リサイズ後も正確)
+function tToX(t_da, geo)   { return geo.ox1 + (t_da + 10) * 5 * geo.f / 60; }
+function hToY(h_abs, geo)  { return geo.oy1 - h_abs * 100 * geo.f; }
+
 // canvas座標 → 物理量 (ズーム・パン考慮)
 function canvasToChart(cx, cy, geo) {
-  // ズームを外す: chart座標 = (canvas座標 - pan) / zoom
   const x = (cx - state.panX) / state.zoom;
   const y = (cy - state.panY) / state.zoom;
   return { x, y };
@@ -666,7 +669,7 @@ function xyToTH(cx, cy, geo) {
   else if (state.increment === 5) t_da = Math.round(2*(0.6*cx_ratio-10))*0.5;
   else                             t_da = Math.round(0.6*cx_ratio-10);
   const h_abs = (geo.oy1 - y) * 0.01 / geo.f;
-  return { t_da, h_abs, cx_ratio, chartX: x, chartY: y };
+  return { t_da, h_abs, cx_ratio };
 }
 
 function chartToCanvas(x, y) {
@@ -839,32 +842,33 @@ function drawChart() {
   // 点・接続線の描画 (chart座標 → canvas座標)
   const r1=state.pointSize.r1, r2=state.pointSize.r2;
 
-  function ptC(pt) { // pointのcanvas座標（ズーム前のchart座標を持っているので変換）
-    return { cx: pt.cx, cy: pt.cy }; // 既にchart座標で保存
+  // 物理量から現在のgeoでchart座標を計算
+  function ptXY(pt) {
+    return { x: tToX(pt.t_da, geo), y: hToY(pt.h_abs, geo) };
   }
 
   // 接続線
-  if (state.p1 && state.p2) {
+  if (state.p1 && state.p2 && state.p2.t_da !== null) {
+    const a=ptXY(state.p1), b=ptXY(state.p2);
     ctx.beginPath(); ctx.strokeStyle='rgba(100,100,100,0.4)';
     ctx.lineWidth=1.2; ctx.setLineDash([4,3]);
-    ctx.moveTo(state.p1.chartX, state.p1.chartY);
-    ctx.lineTo(state.p2.chartX, state.p2.chartY);
+    ctx.moveTo(a.x, a.y); ctx.lineTo(b.x, b.y);
     ctx.stroke(); ctx.setLineDash([]);
   }
   if (state.p1 && state.p3) {
+    const a=ptXY(state.p1), b=ptXY(state.p3);
     ctx.beginPath(); ctx.strokeStyle='rgba(100,100,100,0.4)';
     ctx.lineWidth=1.2; ctx.setLineDash([4,3]);
-    ctx.moveTo(state.p1.chartX, state.p1.chartY);
-    ctx.lineTo(state.p3.chartX, state.p3.chartY);
+    ctx.moveTo(a.x, a.y); ctx.lineTo(b.x, b.y);
     ctx.stroke(); ctx.setLineDash([]);
   }
 
-  if (state.p1) drawPt(state.p1.chartX, state.p1.chartY, '#c0392b', r1, r2);
-  if (state.p3) drawPt(state.p3.chartX, state.p3.chartY, '#27ae60', r1, r2);
-  if (state.p2) drawPt(state.p2.chartX, state.p2.chartY, '#2980b9', r1, r2);
+  if (state.p1) { const {x,y}=ptXY(state.p1); drawPt(x,y,'#c0392b',r1,r2); }
+  if (state.p3) { const {x,y}=ptXY(state.p3); drawPt(x,y,'#27ae60',r1,r2); }
+  if (state.p2 && state.p2.t_da !== null) { const {x,y}=ptXY(state.p2); drawPt(x,y,'#2980b9',r1,r2); }
   if (state.cur) {
     const col={p1:'#c0392b',p3:'#27ae60',p2:'#2980b9',done:'#888'}[state.btnState]||'#888';
-    drawPt(state.cur.chartX, state.cur.chartY, col, r1*0.75, r2*0.6, true);
+    drawPt(tToX(state.cur.t_da,geo), hToY(state.cur.h_abs,geo), col, r1*0.75, r2*0.6, true);
   }
 
   ctx.restore(); // ズーム・パン解除
@@ -1071,9 +1075,9 @@ canvas.addEventListener('pointermove', e=>{
     document.getElementById('chartStatus').textContent='クリック / タップで空気状態を選択';
     drawChart(); return;
   }
-  const {t_da,h_abs,chartX,chartY}=xyToTH(cx,cy,state.geo);
+  const {t_da,h_abs}=xyToTH(cx,cy,state.geo);
   if (h_abs<0||h_abs>0.04) { state.cur=null; drawChart(); return; }
-  state.cur={chartX,chartY,t_da,h_abs};
+  state.cur={t_da,h_abs};
   const props=calcProps(t_da,h_abs);
   updateSidebar(props);
   document.getElementById('chartStatus').textContent=
@@ -1087,7 +1091,7 @@ canvas.addEventListener('pointerup', e=>{
   if (elapsed<80) return;
   const {cx,cy}=getCanvasXY(e);
   if (!isInBounds(cx,cy,state.geo)) { toast('グラフ領域内をクリックしてください'); return; }
-  const {t_da,h_abs,chartX,chartY}=xyToTH(cx,cy,state.geo);
+  const {t_da,h_abs}=xyToTH(cx,cy,state.geo);
   if (h_abs<0||h_abs>0.04) { toast('相対湿度100%以下の範囲を選択してください'); return; }
   if (!isBelowSaturation(t_da,h_abs)) { toast('相対湿度100%超です。別の場所を選択してください'); return; }
 
@@ -1095,38 +1099,33 @@ canvas.addEventListener('pointerup', e=>{
   const t=state.calcType;
 
   if (state.btnState==='p1') {
-    state.p1={chartX,chartY,t_da,h_abs}; state.p1props=props;
+    state.p1={t_da,h_abs}; state.p1props=props;
     setVal('r_x1',props.t_da,2); setVal('r_rh1',props.rh,2); setVal('r_se1',props.se,2);
     document.getElementById('badgeP1').classList.remove('inactive');
     state.btnState = t===4 ? 'p3' : 'p2';
     toast(t===4 ? '点①セット完了。次に点③を選択してください（緑）' : '点①セット完了。次に点②を選択してください（青）');
 
   } else if (state.btnState==='p3') {
-    state.p3={chartX,chartY,t_da,h_abs}; state.p3props=props;
+    state.p3={t_da,h_abs}; state.p3props=props;
     setVal('r_x3',props.t_da,2); setVal('r_rh3',props.rh,2); setVal('r_se3',props.se,2);
     document.getElementById('badgeP3').classList.remove('inactive');
-    const v1=state.vol1,v3=state.vol3;
-    state.p2={
-      chartX: (state.p1.chartX*v1+chartX*v3)/(v1+v3),
-      chartY: (state.p1.chartY*v1+chartY*v3)/(v1+v3),
-      t_da:null, h_abs:null
-    };
+    // 混合点②の仮位置（物理量で保存、計算ボタンで確定）
+    const v1=state.vol1, v3=state.vol3, v2=v1+v3;
+    state.p2={ t_da:(state.p1.t_da*v1+t_da*v3)/v2, h_abs:(state.p1.h_abs*v1+h_abs*v3)/v2 };
     state.btnState='done';
     toast('点③セット完了。計算ボタンを押してください。');
 
   } else if (state.btnState==='p2') {
-    let fx=chartX, fy=chartY;
-    if (t===0) { // 加熱: Y固定
-      if (chartX<=state.p1.chartX) { toast('加熱は右（温度上昇）方向を選択してください'); return; }
-      fy=state.p1.chartY;
+    let ft=t_da, fh=h_abs;
+    if (t===0) { // 加熱: 絶対湿度固定（Y固定）
+      if (t_da<=state.p1.t_da) { toast('加熱は右（温度上昇）方向を選択してください'); return; }
+      fh=state.p1.h_abs;
     } else if (t===1) { // 冷却: 左方向
-      if (chartX>=state.p1.chartX) { toast('冷却は左（温度低下）方向を選択してください'); return; }
-      if (chartY<state.p1.chartY) fy=state.p1.chartY; // 顕熱のみ
+      if (t_da>=state.p1.t_da) { toast('冷却は左（温度低下）方向を選択してください'); return; }
+      if (h_abs>state.p1.h_abs) fh=state.p1.h_abs; // 顕熱のみ（絶対湿度固定）
     }
-    const {t_da:t2,h_abs:h2}=xyToTH(
-      fx*state.zoom+state.panX, fy*state.zoom+state.panY, state.geo);
-    const props2=calcProps(t2,h2);
-    state.p2={chartX:fx,chartY:fy,t_da:t2,h_abs:h2}; state.p2props=props2;
+    const props2=calcProps(ft,fh);
+    state.p2={t_da:ft,h_abs:fh}; state.p2props=props2;
     setVal('r_x2',props2.t_da,2); setVal('r_rh2',props2.rh,2); setVal('r_se2',props2.se,2);
     document.getElementById('badgeP2').classList.remove('inactive');
     state.btnState='done';
@@ -1171,11 +1170,7 @@ document.getElementById('btnCalc').addEventListener('click', ()=>{
     const t2=(v1*state.p1.t_da+v3*state.p3.t_da)/v2;
     const h2=(v1*state.p1.h_abs+v3*state.p3.h_abs)/v2;
     const p2=calcProps(t2,h2);
-    state.p2={
-      chartX:(state.p1.chartX*v1+state.p3.chartX*v3)/v2,
-      chartY:(state.p1.chartY*v1+state.p3.chartY*v3)/v2,
-      t_da:t2, h_abs:h2
-    }; state.p2props=p2;
+    state.p2={ t_da:t2, h_abs:h2 }; state.p2props=p2;
     setVal('r_x2',p2.t_da,2); setVal('r_rh2',p2.rh,2); setVal('r_se2',p2.se,2);
     document.getElementById('badgeP2').classList.remove('inactive');
     document.getElementById('result_dh').style.display='none';
