@@ -163,7 +163,8 @@ select:focus { border-color: var(--accent2); }
 /* スクロール領域 */
 .chart-scroll {
   flex: 1;
-  overflow: auto;
+  overflow: scroll;          /* autoでなくscrollで常にバー表示 */
+  -webkit-overflow-scrolling: touch;  /* iOS慣性スクロール */
   position: relative;
 }
 
@@ -211,7 +212,7 @@ canvas#chart {
 
 /* ── RESIZER ── */
 .resizer {
-  width: 7px;
+  width: 14px;               /* タブレットでも触りやすく幅を広げる */
   background: var(--border);
   cursor: col-resize;
   flex-shrink: 0;
@@ -221,6 +222,7 @@ canvas#chart {
   transition: background 0.15s;
   position: relative;
   user-select: none;
+  touch-action: none;        /* タッチイベントをブラウザに横取りさせない */
 }
 .resizer:hover, .resizer.dragging { background: var(--accent2); }
 .resizer::after {
@@ -714,9 +716,10 @@ let dpr = 1;
 function resizeCanvas() {
   dpr = window.devicePixelRatio || 1;
   const scroll = document.getElementById('chartScroll');
-  // キャンバスを固定サイズ（スクロールバーが出る最小サイズ）に設定
-  const w = Math.max(scroll.clientWidth,  920);
-  const h = Math.max(scroll.clientHeight, 560);
+  // コンテナより大きい固定サイズでキャンバスを作成→常にスクロールバーが出る
+  const minW = 1100, minH = 660;
+  const w = Math.max(scroll.clientWidth  + 200, minW);
+  const h = Math.max(scroll.clientHeight + 150, minH);
   canvas.width  = w * dpr;
   canvas.height = h * dpr;
   canvas.style.width  = w + 'px';
@@ -1182,53 +1185,46 @@ canvas.addEventListener('touchmove', e=>{
 }, {passive:false});
 
 // ══════════════════════════════════════════
-//  リサイザー (ドラッグで幅変更)
+//  リサイザー (ポインターイベントで統一 → PC・タブレット両対応)
 // ══════════════════════════════════════════
-const resizer  = document.getElementById('resizer');
-const sidebar  = document.getElementById('sidebar');
+const resizer   = document.getElementById('resizer');
+const sidebar   = document.getElementById('sidebar');
 const chartWrap = document.getElementById('chartWrap');
-let resizerDragging = false, resizerStartX=0, sidebarStartW=0;
+let resizerDragging = false, resizerStartX = 0, sidebarStartW = 0;
 
-resizer.addEventListener('mousedown', e=>{
-  resizerDragging=true;
-  resizerStartX=e.clientX;
-  sidebarStartW=sidebar.offsetWidth;
-  resizer.classList.add('dragging');
-  document.body.style.cursor='col-resize';
-  document.body.style.userSelect='none';
-});
-document.addEventListener('mousemove', e=>{
-  if (!resizerDragging) return;
-  const delta = resizerStartX - e.clientX; // 右→左で増加
-  const newW  = Math.max(150, Math.min(window.innerWidth*0.6, sidebarStartW+delta));
-  sidebar.style.width = newW+'px';
-  resizeCanvas();
-});
-document.addEventListener('mouseup', ()=>{
-  if (!resizerDragging) return;
-  resizerDragging=false;
-  resizer.classList.remove('dragging');
-  document.body.style.cursor='';
-  document.body.style.userSelect='';
-});
-
-// タッチ対応
-resizer.addEventListener('touchstart', e=>{
-  resizerDragging=true;
-  resizerStartX=e.touches[0].clientX;
-  sidebarStartW=sidebar.offsetWidth;
-  resizer.classList.add('dragging');
-}, {passive:true});
-document.addEventListener('touchmove', e=>{
-  if (!resizerDragging) return;
+resizer.addEventListener('pointerdown', e => {
   e.preventDefault();
-  const delta=resizerStartX-e.touches[0].clientX;
-  const newW=Math.max(150,Math.min(window.innerWidth*0.6,sidebarStartW+delta));
-  sidebar.style.width=newW+'px';
+  resizerDragging = true;
+  resizerStartX   = e.clientX;
+  sidebarStartW   = sidebar.offsetWidth;
+  resizer.setPointerCapture(e.pointerId);  // ポインターをリサイザーに固定
+  resizer.classList.add('dragging');
+  document.body.style.cursor = 'col-resize';
+  document.body.style.userSelect = 'none';
+});
+
+resizer.addEventListener('pointermove', e => {
+  if (!resizerDragging) return;
+  const delta = resizerStartX - e.clientX;
+  const newW  = Math.max(150, Math.min(window.innerWidth * 0.7, sidebarStartW + delta));
+  sidebar.style.width = newW + 'px';
   resizeCanvas();
-}, {passive:false});
-document.addEventListener('touchend', ()=>{
-  resizerDragging=false; resizer.classList.remove('dragging');
+});
+
+resizer.addEventListener('pointerup', e => {
+  if (!resizerDragging) return;
+  resizerDragging = false;
+  resizer.releasePointerCapture(e.pointerId);
+  resizer.classList.remove('dragging');
+  document.body.style.cursor = '';
+  document.body.style.userSelect = '';
+});
+
+resizer.addEventListener('pointercancel', e => {
+  resizerDragging = false;
+  resizer.classList.remove('dragging');
+  document.body.style.cursor = '';
+  document.body.style.userSelect = '';
 });
 
 // ══════════════════════════════════════════
