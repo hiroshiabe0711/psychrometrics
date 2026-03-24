@@ -695,14 +695,13 @@ function isInBounds(cx, cy, geo) {
 }
 
 function isBelowSaturation(t_da, h_abs) {
-  const p_crit_h = 221200;
-  const d = 1-(t_da+273.15)/t_critical;
-  const m = (-7.76451*d+1.45838*Math.pow(d,1.5)-2.7758*Math.pow(d,3)-1.23303*Math.pow(d,6))/(1-d);
-  const p_sat = p_crit_h*Math.exp(m);
-  const v_sat = 217*p_sat/(t_da+273.15);
-  const sv = specificVolume(t_da, h_abs);
-  const y_axis = 10*0.1*v_sat*(Math.pow(t_da,2)*0.0001+sv)/1000;
-  return y_axis >= h_abs;
+  // RH=100%の絶対湿度を calcProps と同じ式で計算
+  const sat  = satVaporAmount(t_da);
+  const K    = 1.0 * sat / 1000 * (t_da + 273.15) / P_0;
+  const denom = 1 - K * R_w;
+  if (denom <= 0) return false;
+  const h_sat = K * R_a / denom;
+  return h_abs <= h_sat;
 }
 
 // ══════════════════════════════════════════
@@ -775,87 +774,246 @@ function drawChart() {
   ctx.save();
   ctx.translate(geo.ox2 + f*0.9, geo.oy2+(geo.oy1-geo.oy2)/2);
   ctx.rotate(Math.PI/2);
-  ctx.textAlign='center'; ctx.font=`${suff5}px 'Noto Sans JP',sans-serif`;
+  ctx.textAlign='center'; ctx.font=`${suff2}px 'Noto Sans JP',sans-serif`;
   ctx.fillStyle='#333';
   ctx.fillText("絶対湿度 W [kg/kg']", 0, 0);
   ctx.restore();
 
-  // 相対湿度曲線
-  for (let ix=0; ix<=59; ix++) {
-    for (let fai=1; fai<=10; fai++) {
-      const PC=221200, TC=647.3;
-      const calc = (t) => {
-        const d=1-(t+273.15)/TC;
-        const m=(-7.76451*d+1.45838*Math.pow(d,1.5)-2.7758*Math.pow(d,3)-1.23303*Math.pow(d,6))/(1-d);
-        const ps=PC*Math.exp(m), vs=217*ps/(t+273.15);
-        return fai*0.1*vs*(Math.pow(t,2)*0.0001+1)/1000;
-      };
-      const t1=ix-10, t2=t1+1;
-      const a1=calc(t1), a2=calc(t2);
-      const x1d=geo.ox1+ix*5*f/60,  y1d=geo.oy1-a1*100*f;
-      const x2d=geo.ox1+(ix+1)*5*f/60, y2d=geo.oy1-a2*100*f;
-      if (y1d>=geo.oy2) {
-        ctx.beginPath();
-        ctx.strokeStyle = fai===10 ? 'rgba(0,0,0,0.85)' : 'rgba(0,0,0,0.45)';
-        ctx.lineWidth   = fai===10 ? 1.8 : 1.0;
-        let y2c=y2d, x2c=x2d;
-        if (y2d<geo.oy2){ y2c=geo.oy2; x2c=x1d+(x2d-x1d)*(y1d-geo.oy2)/(y1d-y2d); }
-        ctx.moveTo(x1d,y1d); ctx.lineTo(x2c,y2c); ctx.stroke();
-        if (ix===40) {
-          const ang=Math.atan2(y2d-y1d,x2d-x1d);
-          ctx.save(); ctx.translate(x2d,y2d); ctx.rotate(ang);
-          ctx.font=`bold ${suff5}px 'IBM Plex Mono',monospace`;
-          ctx.fillStyle='#111'; ctx.textAlign='left';
-          ctx.fillText(`${fai*10}%`, f/5, 0);
-          ctx.restore();
+
+  // ── 相対湿度曲線 ──────────────────────────────────────────────
+  // calcProps() と完全に同じ式で h_abs を逆算して描画
+  // relHumidity の式: φ = (h / sv) / (sat/1000) * 100
+  // sv = (R_a + h * R_w) * (T+273.15) / P_0  を代入して h を解くと:
+  //   K = φ/100 * sat/1000 * (T+273.15) / P_0
+  //   h = K * R_a / (1 - K * R_w)
+  function hAbsForRH(t_C, phi_pct) {
+    const sat = satVaporAmount(t_C);          // g/m³
+    const K   = phi_pct / 100 * sat / 1000 * (t_C + 273.15) / P_0;
+    const denom = 1 - K * R_w;
+    if (denom <= 0) return NaN;
+    return K * R_a / denom;
+  }
+
+  for (let fai = 1; fai <= 10; fai++) {
+    const phi = fai * 10; // 10%, 20%, ..., 100%
+    ctx.beginPath();
+    let prevX = null, prevY = null;
+
+    for (let ix = 0; ix <= 60; ix++) {
+      const t  = ix - 10;
+      const h  = hAbsForRH(t, phi);
+      if (isNaN(h) || h < 0 || h > 0.042) { prevX = null; continue; }
+
+      const x = tToX(t, geo);
+      const y = hToY(h, geo);
+
+      // グラフ上端を超えたら補間してクリップ
+      if (y < geo.oy2) {
+        if (prevX !== null && prevY !== null) {
+          const ratio = (prevY - geo.oy2) / (prevY - y);
+          ctx.lineTo(prevX + (x - prevX) * ratio, geo.oy2);
         }
+        break;
+      }
+
+      if (prevX === null) ctx.moveTo(x, y);
+      else                ctx.lineTo(x, y);
+      prevX = x; prevY = y;
+    }
+
+    ctx.strokeStyle = fai === 10 ? 'rgba(0,0,0,0.85)' : 'rgba(0,0,0,0.45)';
+    ctx.lineWidth   = fai === 10 ? 1.8 : 1.0;
+    ctx.stroke();
+
+    // RHラベル（ix=40 付近、線の上に角度付きで表示）
+    const t_lbl  = 30; // 30℃付近に表示
+    const h_lbl  = hAbsForRH(t_lbl,   phi);
+    const h_lbl2 = hAbsForRH(t_lbl+1, phi);
+    if (!isNaN(h_lbl) && h_lbl >= 0 && h_lbl <= 0.042 &&
+        !isNaN(h_lbl2) && h_lbl2 >= 0 && h_lbl2 <= 0.042) {
+      const x1 = tToX(t_lbl,   geo), y1 = hToY(h_lbl,  geo);
+      const x2 = tToX(t_lbl+1, geo), y2 = hToY(h_lbl2, geo);
+      if (y1 >= geo.oy2) {
+        const ang = Math.atan2(y2 - y1, x2 - x1);
+        ctx.save();
+        ctx.translate(x2, y2); ctx.rotate(ang);
+        ctx.font = `bold ${suff5}px 'IBM Plex Mono',monospace`;
+        ctx.fillStyle = '#111'; ctx.textAlign = 'left';
+        ctx.fillText(`${phi}%`, f / 5, 0);
+        ctx.restore();
       }
     }
   }
 
-  // 比エンタルピー曲線
-  const a_ent=(0.03375-0.00018)/(34.0496+9.79), b_ent=0.00977;
-  for (let se=0; se<=125; se+=10) {
-    for (let ix=0; ix<=59; ix++) {
-      const t1=ix-10, t2=t1+1;
-      const a1=(se-1.006*t1)/(1.86*t1+2501);
-      const a2=(se-1.006*t2)/(1.86*t2+2501);
-      const x1d=geo.ox1+ix*5*f/60,     y1d=geo.oy1-a1*100*f;
-      const x2d=geo.ox1+(ix+1)*5*f/60, y2d=geo.oy1-a2*100*f;
-      if (a1<a_ent*t1+b_ent && a2>=0 && a1<=0.04) {
-        ctx.beginPath(); ctx.strokeStyle='rgba(60,60,60,0.5)'; ctx.lineWidth=0.9;
-        ctx.moveTo(x1d,y1d); ctx.lineTo(x2d,y2d); ctx.stroke();
-      }
-    }
-    // エンタルピーラベル
-    const c2=se/10+1;
-    const lx=geo.ox1-30+c2*5*f/31*(30/12);
-    const ly=geo.oy1+5-c2*5*f/39.7*(42/12);
-    const t_l=c2-10, a_l=(se-1.006*t_l)/(1.86*t_l+2501);
-    const t_l2=t_l+1, a_l2=(se-1.006*t_l2)/(1.86*t_l2+2501);
-    const ang=Math.atan2(geo.oy1-a_l2*100*f-(geo.oy1-a_l*100*f),
-                          geo.ox1+(c2+1)*5*f/60-(geo.ox1+c2*5*f/60));
-    if (lx>geo.ox1-10&&ly>geo.oy2&&ly<geo.oy1) {
-      ctx.save(); ctx.translate(lx,ly); ctx.rotate(ang*0.8);
-      ctx.font=`${suff5}px 'IBM Plex Mono',monospace`;
-      ctx.fillStyle='#333'; ctx.textAlign='left';
-      ctx.fillText(String(se),0,0);
-      ctx.restore();
-    }
-  }
-  // エンタルピー基準線
-  ctx.beginPath(); ctx.strokeStyle='rgba(180,180,180,0.6)'; ctx.lineWidth=2;
-  ctx.moveTo(geo.ox1*1.0875, geo.oy1*0.96);
-  ctx.lineTo(geo.ox1*19.354, geo.oy1*0.25); ctx.stroke();
 
-  // エンタルピー軸タイトル
+  // ── 比エンタルピー曲線 & ラベル ──────────────────────────────
+  // h = 1.006*T + (2501 + 1.805*T)*W  →  W = (h - 1.006*T)/(2501 + 1.805*T)
+  //
+  // 見切り基準: 飽和湿度の1.5倍の曲線 (wRef) との交点を求め、
+  // h=0 の交点 と h=120 の交点を直線で結んだ線を見切り線として使う
+
+  function wRef(t) {
+    const sat = satVaporAmount(t);
+    const K   = sat / 1000 * (t + 273.15) / P_0;
+    const denom = 1 - K * R_w;
+    if (denom <= 0) return 0;
+    return 1.5 * (K * R_a / denom);
+  }
+
+  // h=seとwRef(t)の交点を二分法で求める（T∈[-10,50]）← cutPt0/cutPt120の計算に使用
+  function findIntersectT(se) {
+    const fn = (t) => {
+      const we = (se - 1.006*t) / (2501 + 1.805*t);
+      return we - wRef(t);
+    };
+    let lo = -10, hi = 50;
+    let flo = fn(lo), fhi = fn(hi);
+    if (flo * fhi > 0) return null;
+    for (let i = 0; i < 60; i++) {
+      const mid = (lo + hi) / 2;
+      const fmid = fn(mid);
+      if (Math.abs(fmid) < 1e-9) return mid;
+      if (flo * fmid <= 0) { hi = mid; fhi = fmid; }
+      else                 { lo = mid; flo = fmid; }
+    }
+    return (lo + hi) / 2;
+  }
+
+  // h=seと見切り直線（canvas座標の直線）との交点をT∈[-10,50]で二分法探索
+  function findIntersectTStraight(se) {
+    if (!cutPt0 || !cutPt120) return null;
+    const dx = cutPt120.x - cutPt0.x;
+    const dy = cutPt120.y - cutPt0.y;
+    // cross(t) = (x(t)-cutPt0.x)*dy - (y(t)-cutPt0.y)*dx
+    const fn = (t) => {
+      const w = (se - 1.006*t) / (2501 + 1.805*t);
+      const x = tToX(t, geo), y = hToY(w, geo);
+      return (x - cutPt0.x)*dy - (y - cutPt0.y)*dx;
+    };
+    let lo = -10, hi = 50;
+    let flo = fn(lo), fhi = fn(hi);
+    if (flo * fhi > 0) return null;
+    for (let i = 0; i < 60; i++) {
+      const mid = (lo + hi) / 2;
+      const fmid = fn(mid);
+      if (Math.abs(fmid) < 1e-6) return mid;
+      if (flo * fmid <= 0) { hi = mid; fhi = fmid; }
+      else                 { lo = mid; flo = fmid; }
+    }
+    return (lo + hi) / 2;
+  }
+
+  // h=0 と h=120 の交点座標を計算
+  const T_at_h0   = findIntersectT(0);
+  const T_at_h120 = findIntersectT(120);
+
+  const cutPt0   = T_at_h0   !== null ? { x: tToX(T_at_h0,   geo), y: hToY(wRef(T_at_h0),   geo) } : null;
+  const cutPt120 = T_at_h120 !== null ? { x: tToX(T_at_h120, geo), y: hToY(wRef(T_at_h120), geo) } : null;
+
+  // 見切り直線の式: 2点から直線パラメータを計算
+  // 見切り: canvas座標上の直線 (cutPt0 → cutPt120) の「左側（上側）」でエンタルピー線を描画
+  // 点(x,y)が直線の上側かどうか: 直線方程式 Ax+By+C<0 を使う
+  function aboveCutLine(x, y) {
+    if (!cutPt0 || !cutPt120) return false;
+    // 直線ベクトル (dx, dy)、法線は (-dy, dx)
+    const dx = cutPt120.x - cutPt0.x;
+    const dy = cutPt120.y - cutPt0.y;
+    // 符号: canvas座標はY軸下向きなので「上側 = y が小さい側」
+    // 外積で判定: (P - P0) × d > 0 なら右側、< 0 なら左側
+    const cross = (x - cutPt0.x) * dy - (y - cutPt0.y) * dx;
+    return cross > 0; // canvas座標系で下側（相対湿度線の側）
+  }
+
+  // チャート矩形でクリップ
   ctx.save();
-  ctx.translate(geo.ox1+f, geo.oy1-1.2*f);
-  ctx.rotate(-43*Math.PI/180);
-  ctx.font=`${suff2}px 'Noto Sans JP',sans-serif`;
-  ctx.fillStyle='#222'; ctx.textAlign='center';
-  ctx.fillText('比エンタルピー h [kJ/kg(DA)]', 0.6*f, -0.4*f);
-  ctx.restore();
+  ctx.beginPath();
+  ctx.rect(geo.ox1 - 1, geo.oy2 - 1, geo.ox2 - geo.ox1 + 2, geo.oy1 - geo.oy2 + 2);
+  ctx.clip();
+
+  // 見切り直線の角度
+  const cutAngle = (cutPt0 && cutPt120)
+    ? Math.atan2(cutPt120.y - cutPt0.y, cutPt120.x - cutPt0.x)
+    : -43 * Math.PI / 180;
+
+  for (let se = 0; se <= 120; se += 10) {
+    ctx.beginPath();
+    let started = false;
+
+    for (let ix = 0; ix <= 60; ix++) {
+      const t = ix - 10;
+      const w = (se - 1.006 * t) / (2501 + 1.805 * t);
+      if (w < 0 || w > 0.04) { started = false; continue; }
+      const x = tToX(t, geo), y = hToY(w, geo);
+      if (aboveCutLine(x, y)) { started = false; continue; }
+      if (!started) { ctx.moveTo(x, y); started = true; }
+      else          { ctx.lineTo(x, y); }
+    }
+    ctx.strokeStyle = 'rgba(50,50,50,0.55)';
+    ctx.lineWidth = 0.9;
+    ctx.stroke();
+
+    // ①②ラベル：見切り直線×等エンタルピー線の交点に、等エンタルピー線と平行に配置
+    const T_cross = findIntersectTStraight(se);
+    if (T_cross !== null && T_cross >= -10 && T_cross <= 50) {
+      const w_cross = (se - 1.006 * T_cross) / (2501 + 1.805 * T_cross);
+      if (w_cross >= 0 && w_cross <= 0.04) {
+        // 交点での等エンタルピー線の接線角度
+        const dt = 0.5;
+        const t1 = T_cross - dt, t2 = T_cross + dt;
+        const w1 = (se - 1.006*t1) / (2501 + 1.805*t1);
+        const w2 = (se - 1.006*t2) / (2501 + 1.805*t2);
+        const lineAng = Math.atan2(
+          hToY(w2, geo) - hToY(w1, geo),
+          tToX(t2, geo) - tToX(t1, geo)
+        );
+
+        const lx = tToX(T_cross, geo);
+        const ly = hToY(w_cross, geo);
+
+        ctx.save();
+        ctx.translate(lx, ly);
+        ctx.rotate(lineAng);  // ①等エンタルピー線と同じ傾き
+        ctx.font = `bold ${suff5}px 'IBM Plex Mono',monospace`;
+        ctx.fillStyle = '#222';
+        ctx.textAlign  = 'right';   // ②見切り線の左側へ
+        ctx.textBaseline = 'bottom';
+        ctx.fillText(String(se), -3, -2);
+        ctx.restore();
+      }
+    }
+  }
+  ctx.restore(); // クリップ解除
+
+  // 見切り直線の描画（h=0交点 → h=120交点）
+  if (cutPt0 && cutPt120) {
+    ctx.beginPath();
+    ctx.moveTo(cutPt0.x,   cutPt0.y);
+    ctx.lineTo(cutPt120.x, cutPt120.y);
+    ctx.strokeStyle = 'rgba(140,140,140,0.9)';
+    ctx.lineWidth = 1.5;
+    ctx.stroke();
+  }
+
+  // ③比エンタルピー軸タイトル：見切り線の左側、見切り線と平行
+  if (cutPt0 && cutPt120) {
+    // 見切り線の中点
+    const midX = (cutPt0.x + cutPt120.x) / 2;
+    const midY = (cutPt0.y + cutPt120.y) / 2;
+    // 法線方向（右下→左上＝見切り線の左側）へオフセット
+    const offset = f * 0.4;
+    const nx =  Math.sin(cutAngle) * offset;
+    const ny = -Math.cos(cutAngle) * offset;
+    ctx.save();
+    ctx.translate(midX + nx, midY + ny);
+    ctx.rotate(cutAngle);  // 見切り線と同じ傾き
+    ctx.font = `${suff2}px 'Noto Sans JP',sans-serif`;
+    ctx.fillStyle = '#333';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText('比エンタルピー h [kJ/kg(DA)]', 0, 0);
+    ctx.restore();
+  }
+
 
   // 点・接続線の描画 (chart座標 → canvas座標)
   const r1=state.pointSize.r1, r2=state.pointSize.r2;
