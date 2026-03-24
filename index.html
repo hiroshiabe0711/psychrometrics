@@ -153,35 +153,36 @@ select:focus { border-color: var(--accent2); }
 .chart-wrap {
   position: relative;
   background: white;
-  overflow: auto;
+  overflow: hidden;
   flex: 1;
   min-width: 100px;
+  display: flex;
+  flex-direction: column;
+}
+
+/* スクロール領域 */
+.chart-scroll {
+  flex: 1;
+  overflow: auto;
+  position: relative;
 }
 
 canvas#chart {
   display: block;
   cursor: crosshair;
-  min-width: 820px;
-  min-height: 480px;
 }
 
 /* ── ZOOM CONTROLS ── */
 .zoom-controls {
-  position: sticky;
-  top: 8px;
-  float: right;
-  margin-right: 10px;
-  margin-top: 8px;
   display: flex;
   align-items: center;
   gap: 4px;
   z-index: 20;
-  background: rgba(255,255,255,0.95);
-  border: 1px solid var(--border);
-  border-radius: 4px;
-  padding: 4px 6px;
-  box-shadow: 0 1px 4px rgba(0,0,0,0.15);
-  pointer-events: all;
+  background: rgba(255,255,255,0.97);
+  border-bottom: 1px solid var(--border);
+  padding: 5px 10px;
+  flex-shrink: 0;
+  justify-content: flex-end;
 }
 .zoom-btn {
   width: 24px; height: 24px;
@@ -317,17 +318,19 @@ canvas#chart {
 
 /* ── CHART STATUS ── */
 .chart-status {
-  position: absolute;
-  bottom: 8px;
-  left: 10px;
+  position: sticky;
+  bottom: 4px;
+  left: 8px;
+  display: inline-block;
   font-family: 'IBM Plex Mono', monospace;
   font-size: 10px;
   color: var(--ink3);
-  background: rgba(255,255,255,0.85);
+  background: rgba(255,255,255,0.9);
   padding: 3px 7px;
   border-radius: 2px;
   pointer-events: none;
   border: 1px solid var(--border);
+  margin: 4px 0 4px 8px;
 }
 
 /* ── TOAST ── */
@@ -402,15 +405,22 @@ canvas#chart {
 
   <!-- CHART -->
   <div class="chart-wrap" id="chartWrap">
-    <canvas id="chart"></canvas>
-    <div class="chart-status" id="chartStatus">クリック / タップで空気状態を選択</div>
 
-    <!-- ZOOM CONTROLS -->
+    <!-- ズームコントロール（スクロール外・固定） -->
     <div class="zoom-controls">
+      <span style="font-size:11px;color:var(--ink3);margin-right:4px">ズーム</span>
       <button class="zoom-btn" id="zoomOut" title="縮小">－</button>
       <div class="zoom-label" id="zoomLabel" title="クリックでリセット">100%</div>
       <button class="zoom-btn" id="zoomIn" title="拡大">＋</button>
+      <span style="font-size:10px;color:var(--ink3);margin-left:8px">ホイール・ピンチでもズーム可</span>
     </div>
+
+    <!-- スクロール領域 -->
+    <div class="chart-scroll" id="chartScroll">
+      <canvas id="chart"></canvas>
+      <div class="chart-status" id="chartStatus">クリック / タップで空気状態を選択</div>
+    </div>
+
   </div>
 
   <!-- RESIZER -->
@@ -704,10 +714,10 @@ let dpr = 1;
 
 function resizeCanvas() {
   dpr = window.devicePixelRatio || 1;
-  const wrap = document.getElementById('chartWrap');
-  // コンテナサイズと最小サイズの大きい方を使う（スクロール用）
-  const w = Math.max(wrap.clientWidth,  900);
-  const h = Math.max(wrap.clientHeight, 540);
+  const scroll = document.getElementById('chartScroll');
+  // キャンバスを固定サイズ（スクロールバーが出る最小サイズ）に設定
+  const w = Math.max(scroll.clientWidth,  920);
+  const h = Math.max(scroll.clientHeight, 560);
   canvas.width  = w * dpr;
   canvas.height = h * dpr;
   canvas.style.width  = w + 'px';
@@ -1067,9 +1077,9 @@ document.addEventListener('touchend', ()=>{
 //  グラフクリック / タッチ操作
 // ══════════════════════════════════════════
 function getCanvasXY(e) {
-  const rect=canvas.getBoundingClientRect();
+  const rect = canvas.getBoundingClientRect();
   const cl = e.touches ? e.touches[0] : e;
-  return { cx: cl.clientX-rect.left, cy: cl.clientY-rect.top };
+  return { cx: cl.clientX - rect.left, cy: cl.clientY - rect.top };
 }
 
 let pointerDownTime=0, pointerDownXY=null;
