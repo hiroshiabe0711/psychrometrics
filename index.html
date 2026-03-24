@@ -1,0 +1,1374 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>湿り空気線図 Psychrometrics</title>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@300;400;600&family=Noto+Sans+JP:wght@300;400;500&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg: #f0ede8;
+  --surface: #faf8f5;
+  --surface2: #e8e4de;
+  --border: #c8c0b4;
+  --border2: #a09488;
+  --ink: #1a1614;
+  --ink2: #4a4340;
+  --ink3: #7a7068;
+  --red: #c0392b;
+  --green: #27ae60;
+  --blue: #2980b9;
+  --accent: #8b4513;
+  --accent2: #d4570a;
+  --grid: #c8c0b4;
+  --rh-line: #888;
+  --enthalpy-line: #aaa;
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+  background: var(--bg);
+  color: var(--ink);
+  font-family: 'Noto Sans JP', sans-serif;
+  min-height: 100vh;
+}
+
+/* ── HEADER ── */
+header {
+  background: var(--ink);
+  color: var(--bg);
+  padding: 12px 20px;
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  border-bottom: 3px solid var(--accent2);
+}
+header .title {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 14px;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+}
+header .sub {
+  font-size: 11px;
+  color: #aaa;
+  letter-spacing: 1px;
+  margin-top: 2px;
+}
+header .ver {
+  margin-left: auto;
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 10px;
+  color: var(--accent2);
+  border: 1px solid var(--accent2);
+  padding: 3px 8px;
+  border-radius: 2px;
+}
+
+/* ── MAIN LAYOUT ── */
+.app {
+  display: grid;
+  grid-template-columns: 1fr 260px;
+  grid-template-rows: auto 1fr;
+  gap: 0;
+  height: calc(100vh - 51px);
+}
+
+/* ── TOOLBAR ── */
+.toolbar {
+  grid-column: 1 / -1;
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
+  padding: 10px 16px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.toolbar label {
+  font-size: 11px;
+  color: var(--ink3);
+  letter-spacing: 0.5px;
+}
+
+select {
+  background: var(--surface2);
+  border: 1px solid var(--border2);
+  color: var(--ink);
+  font-family: 'Noto Sans JP', sans-serif;
+  font-size: 12px;
+  padding: 6px 10px;
+  border-radius: 3px;
+  cursor: pointer;
+  outline: none;
+}
+select:focus { border-color: var(--accent2); }
+
+.toolbar-sep {
+  width: 1px;
+  height: 24px;
+  background: var(--border);
+}
+
+/* Buttons */
+.btn {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 11px;
+  letter-spacing: 1px;
+  padding: 7px 14px;
+  border: 1px solid var(--border2);
+  border-radius: 3px;
+  cursor: pointer;
+  transition: all 0.15s;
+  background: var(--surface2);
+  color: var(--ink2);
+  text-transform: uppercase;
+}
+.btn:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+}
+.btn:not(:disabled):hover {
+  background: var(--ink);
+  color: var(--bg);
+  border-color: var(--ink);
+}
+.btn.primary {
+  background: var(--accent2);
+  color: white;
+  border-color: var(--accent2);
+}
+.btn.primary:not(:disabled):hover {
+  background: var(--accent);
+  border-color: var(--accent);
+}
+.btn.danger {
+  color: var(--red);
+  border-color: var(--red);
+}
+.btn.danger:not(:disabled):hover {
+  background: var(--red);
+  color: white;
+}
+
+/* State indicators */
+.state-badges {
+  display: flex;
+  gap: 8px;
+  margin-left: auto;
+}
+.badge {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 10px;
+  padding: 3px 8px;
+  border-radius: 2px;
+  border: 1px solid;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+.badge .dot {
+  width: 7px; height: 7px;
+  border-radius: 50%;
+}
+.badge.p1 { color: var(--red); border-color: var(--red); }
+.badge.p1 .dot { background: var(--red); }
+.badge.p3 { color: var(--green); border-color: var(--green); }
+.badge.p3 .dot { background: var(--green); }
+.badge.p2 { color: var(--blue); border-color: var(--blue); }
+.badge.p2 .dot { background: var(--blue); }
+.badge.inactive { opacity: 0.3; }
+
+/* Mixing vol inputs */
+.vol-group {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11px;
+  color: var(--ink3);
+}
+.vol-group input {
+  width: 60px;
+  background: var(--surface2);
+  border: 1px solid var(--border2);
+  color: var(--ink);
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 12px;
+  padding: 5px 8px;
+  border-radius: 3px;
+  text-align: right;
+  outline: none;
+}
+.vol-group input:focus { border-color: var(--accent2); }
+
+/* ── CHART AREA ── */
+.chart-wrap {
+  position: relative;
+  background: white;
+  overflow: hidden;
+  border-right: 1px solid var(--border);
+}
+
+canvas#chart {
+  display: block;
+  cursor: crosshair;
+  width: 100%;
+  height: 100%;
+}
+
+/* ── SIDEBAR ── */
+.sidebar {
+  background: var(--surface);
+  overflow-y: auto;
+  padding: 0;
+}
+
+.sidebar-section {
+  padding: 14px 16px;
+  border-bottom: 1px solid var(--border);
+}
+.sidebar-section:last-child { border-bottom: none; }
+
+.section-title {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 10px;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  color: var(--ink3);
+  margin-bottom: 12px;
+  padding-bottom: 6px;
+  border-bottom: 1px solid var(--border);
+}
+
+.data-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  margin-bottom: 8px;
+  gap: 8px;
+}
+.data-row .label {
+  font-size: 11px;
+  color: var(--ink3);
+  flex-shrink: 0;
+}
+.data-row .label-jp {
+  font-size: 10px;
+  color: var(--ink3);
+  opacity: 0.7;
+}
+.data-row .value {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 13px;
+  color: var(--ink);
+  text-align: right;
+}
+.data-row .value.empty { color: var(--ink3); font-size: 12px; }
+.data-row .unit {
+  font-size: 10px;
+  color: var(--ink3);
+  margin-left: 3px;
+}
+
+/* Point sections */
+.point-header {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 10px;
+  letter-spacing: 1px;
+  padding: 4px 8px;
+  border-radius: 2px;
+  margin-bottom: 8px;
+  display: inline-block;
+}
+.point-header.p1 { background: rgba(192,57,43,0.1); color: var(--red); }
+.point-header.p2 { background: rgba(41,128,185,0.1); color: var(--blue); }
+.point-header.p3 { background: rgba(39,174,96,0.1); color: var(--green); }
+
+/* Result diff */
+.diff-value {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 18px;
+  color: var(--accent2);
+  margin: 6px 0 2px;
+}
+.diff-label { font-size: 10px; color: var(--ink3); }
+
+/* Settings panel */
+.setting-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 10px;
+}
+.setting-row label { font-size: 11px; color: var(--ink3); }
+.radio-group { display: flex; gap: 8px; }
+.radio-group label {
+  display: flex; align-items: center; gap: 4px;
+  font-size: 11px; color: var(--ink2);
+  cursor: pointer;
+}
+.radio-group input { cursor: pointer; accent-color: var(--accent2); }
+
+/* Toast */
+#toast {
+  position: fixed;
+  bottom: 24px;
+  left: 50%;
+  transform: translateX(-50%) translateY(20px);
+  background: var(--ink);
+  color: var(--bg);
+  font-size: 13px;
+  padding: 10px 20px;
+  border-radius: 4px;
+  border-left: 3px solid var(--accent2);
+  opacity: 0;
+  transition: opacity 0.3s, transform 0.3s;
+  pointer-events: none;
+  z-index: 999;
+  max-width: 90vw;
+  text-align: center;
+}
+#toast.show {
+  opacity: 1;
+  transform: translateX(-50%) translateY(0);
+}
+
+/* Status bar at bottom of chart */
+.chart-status {
+  position: absolute;
+  bottom: 8px;
+  left: 12px;
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 10px;
+  color: var(--ink3);
+  background: rgba(255,255,255,0.85);
+  padding: 3px 8px;
+  border-radius: 2px;
+  pointer-events: none;
+}
+
+@media (max-width: 768px) {
+  .app {
+    grid-template-columns: 1fr;
+    grid-template-rows: auto auto 1fr;
+    height: auto;
+  }
+  .sidebar { max-height: 400px; }
+}
+</style>
+</head>
+<body>
+
+<header>
+  <div>
+    <div class="title">Psychrometrics</div>
+    <div class="sub">湿り空気線図 計算ツール</div>
+  </div>
+  <div class="ver">VER 1.0</div>
+</header>
+
+<div class="app">
+
+  <!-- TOOLBAR -->
+  <div class="toolbar">
+    <label>計算種別</label>
+    <select id="calcType">
+      <option value="0">加熱 Heating</option>
+      <option value="1">冷却 Cooling</option>
+      <option value="4">混合 Mixing</option>
+    </select>
+
+    <div class="toolbar-sep"></div>
+
+    <!-- Mixing vol inputs (hidden unless mixing) -->
+    <div class="vol-group" id="volGroup1" style="display:none">
+      <span class="dot" style="width:9px;height:9px;border-radius:50%;background:var(--red);display:inline-block"></span>
+      風量①
+      <input type="number" id="vol1" value="100" min="1">
+      <span>CMH</span>
+    </div>
+    <div class="vol-group" id="volGroup3" style="display:none">
+      <span class="dot" style="width:9px;height:9px;border-radius:50%;background:var(--green);display:inline-block"></span>
+      風量③
+      <input type="number" id="vol3" value="100" min="1">
+      <span>CMH</span>
+    </div>
+
+    <button class="btn" id="btnP1">① 点1セット</button>
+    <button class="btn" id="btnP3" style="display:none">③ 点3セット</button>
+    <button class="btn" id="btnP2">② 点2セット</button>
+    <button class="btn primary" id="btnCalc">▶ 計算</button>
+    <button class="btn danger" id="btnRst">RST</button>
+
+    <div class="state-badges">
+      <div class="badge p1 inactive" id="badgeP1"><div class="dot"></div>P1</div>
+      <div class="badge p3 inactive" id="badgeP3" style="display:none"><div class="dot"></div>P3</div>
+      <div class="badge p2 inactive" id="badgeP2"><div class="dot"></div>P2</div>
+    </div>
+  </div>
+
+  <!-- CHART -->
+  <div class="chart-wrap">
+    <canvas id="chart"></canvas>
+    <div class="chart-status" id="chartStatus">クリック / タップで空気状態を選択</div>
+  </div>
+
+  <!-- SIDEBAR -->
+  <div class="sidebar">
+
+    <!-- Current point values -->
+    <div class="sidebar-section">
+      <div class="section-title">現在地点</div>
+      <div class="data-row">
+        <div><div class="label-jp">乾球温度</div><div class="label">Dry-Bulb</div></div>
+        <div><span class="value" id="v_dbt">—</span><span class="unit">°C</span></div>
+      </div>
+      <div class="data-row">
+        <div><div class="label-jp">絶対湿度</div><div class="label">Humidity Ratio</div></div>
+        <div><span class="value" id="v_absh">—</span><span class="unit">kg/kg'</span></div>
+      </div>
+      <div class="data-row">
+        <div><div class="label-jp">湿球温度</div><div class="label">Wet-Bulb</div></div>
+        <div><span class="value" id="v_wbt">—</span><span class="unit">°C</span></div>
+      </div>
+      <div class="data-row">
+        <div><div class="label-jp">相対湿度</div><div class="label">Rel. Humidity</div></div>
+        <div><span class="value" id="v_rh">—</span><span class="unit">%</span></div>
+      </div>
+      <div class="data-row">
+        <div><div class="label-jp">露点温度</div><div class="label">Dew Point</div></div>
+        <div><span class="value" id="v_adp">—</span><span class="unit">°C</span></div>
+      </div>
+      <div class="data-row">
+        <div><div class="label-jp">比容積</div><div class="label">Spec. Volume</div></div>
+        <div><span class="value" id="v_sv">—</span><span class="unit">m³/kg</span></div>
+      </div>
+      <div class="data-row">
+        <div><div class="label-jp">比エンタルピー</div><div class="label">Enthalpy</div></div>
+        <div><span class="value" id="v_se">—</span><span class="unit">kJ/kg</span></div>
+      </div>
+    </div>
+
+    <!-- Point 1 -->
+    <div class="sidebar-section" id="sec_p1">
+      <div class="section-title">セット済みポイント</div>
+      <div class="point-header p1">● POINT 1 (赤)</div>
+      <div class="data-row">
+        <div class="label">乾球温度</div>
+        <div><span class="value" id="r_x1">—</span><span class="unit">°C</span></div>
+      </div>
+      <div class="data-row">
+        <div class="label">相対湿度</div>
+        <div><span class="value" id="r_rh1">—</span><span class="unit">%</span></div>
+      </div>
+      <div class="data-row">
+        <div class="label">エンタルピー</div>
+        <div><span class="value" id="r_se1">—</span><span class="unit">kJ/kg</span></div>
+      </div>
+    </div>
+
+    <!-- Point 3 (mixing) -->
+    <div class="sidebar-section" id="sec_p3" style="display:none">
+      <div class="point-header p3">● POINT 3 (緑)</div>
+      <div class="data-row">
+        <div class="label">乾球温度</div>
+        <div><span class="value" id="r_x3">—</span><span class="unit">°C</span></div>
+      </div>
+      <div class="data-row">
+        <div class="label">相対湿度</div>
+        <div><span class="value" id="r_rh3">—</span><span class="unit">%</span></div>
+      </div>
+      <div class="data-row">
+        <div class="label">エンタルピー</div>
+        <div><span class="value" id="r_se3">—</span><span class="unit">kJ/kg</span></div>
+      </div>
+    </div>
+
+    <!-- Point 2 -->
+    <div class="sidebar-section" id="sec_p2">
+      <div class="point-header p2">● POINT 2 (青)</div>
+      <div class="data-row">
+        <div class="label">乾球温度</div>
+        <div><span class="value" id="r_x2">—</span><span class="unit">°C</span></div>
+      </div>
+      <div class="data-row">
+        <div class="label">相対湿度</div>
+        <div><span class="value" id="r_rh2">—</span><span class="unit">%</span></div>
+      </div>
+      <div class="data-row">
+        <div class="label">エンタルピー</div>
+        <div><span class="value" id="r_se2">—</span><span class="unit">kJ/kg</span></div>
+      </div>
+    </div>
+
+    <!-- Calc result -->
+    <div class="sidebar-section" id="sec_result">
+      <div class="section-title">計算結果</div>
+      <div id="result_enthalpy_diff" style="display:none;margin-bottom:10px">
+        <div class="diff-label">エンタルピー差 Δh</div>
+        <div class="diff-value" id="r_dh">—</div>
+        <div class="diff-label">kJ/kg</div>
+      </div>
+      <div id="result_mixing" style="display:none">
+        <div class="data-row">
+          <div><div class="label-jp">乾球温度</div><div class="label">Dry-Bulb</div></div>
+          <div><span class="value" id="rm_dbt">—</span><span class="unit">°C</span></div>
+        </div>
+        <div class="data-row">
+          <div><div class="label-jp">絶対湿度</div><div class="label">Hum. Ratio</div></div>
+          <div><span class="value" id="rm_absh">—</span><span class="unit">kg/kg'</span></div>
+        </div>
+        <div class="data-row">
+          <div><div class="label-jp">湿球温度</div><div class="label">Wet-Bulb</div></div>
+          <div><span class="value" id="rm_wbt">—</span><span class="unit">°C</span></div>
+        </div>
+        <div class="data-row">
+          <div><div class="label-jp">相対湿度</div><div class="label">Rel. Humidity</div></div>
+          <div><span class="value" id="rm_rh">—</span><span class="unit">%</span></div>
+        </div>
+        <div class="data-row">
+          <div><div class="label-jp">露点温度</div><div class="label">Dew Point</div></div>
+          <div><span class="value" id="rm_adp">—</span><span class="unit">°C</span></div>
+        </div>
+        <div class="data-row">
+          <div><div class="label-jp">比容積</div><div class="label">Spec. Volume</div></div>
+          <div><span class="value" id="rm_sv">—</span><span class="unit">m³/kg</span></div>
+        </div>
+        <div class="data-row">
+          <div><div class="label-jp">比エンタルピー</div><div class="label">Enthalpy</div></div>
+          <div><span class="value" id="rm_se">—</span><span class="unit">kJ/kg</span></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Settings -->
+    <div class="sidebar-section">
+      <div class="section-title">設定 Settings</div>
+      <div class="setting-row">
+        <label>刻み幅</label>
+        <div class="radio-group">
+          <label><input type="radio" name="inc" value="0" checked> なし</label>
+          <label><input type="radio" name="inc" value="5"> 0.5℃</label>
+          <label><input type="radio" name="inc" value="10"> 1℃</label>
+        </div>
+      </div>
+      <div class="setting-row">
+        <label>点サイズ</label>
+        <div class="radio-group">
+          <label><input type="radio" name="ps" value="small" checked> 小</label>
+          <label><input type="radio" name="ps" value="mid"> 中</label>
+          <label><input type="radio" name="ps" value="large"> 大</label>
+        </div>
+      </div>
+    </div>
+
+  </div><!-- /sidebar -->
+</div><!-- /app -->
+
+<div id="toast"></div>
+
+<script>
+// ═══════════════════════════════════════════════════════
+//  CONSTANTS
+// ═══════════════════════════════════════════════════════
+const R_a = 0.28706;   // 乾き空気の気体定数 kJ/kg·K
+const R_w = 0.46152;   // 水蒸気の気体定数 kJ/kg·K
+const P_0 = 101.325;   // 標準大気圧 kPa
+const p_critical = 22120;  // kPa 臨界圧力
+const t_critical = 647.3;  // K 臨界温度
+
+// ═══════════════════════════════════════════════════════
+//  PSYCHROMETRIC FORMULAS  (from MainActivity.java)
+// ═══════════════════════════════════════════════════════
+
+// Wagner飽和水蒸気圧 [kPa]
+function satPressureWagner(t_C) {
+  const dryness = 1 - (t_C + 273.15) / t_critical;
+  const idx = (-7.76451 * dryness
+    + 1.45838 * Math.pow(dryness, 1.5)
+    - 2.7758  * Math.pow(dryness, 3)
+    - 1.23303 * Math.pow(dryness, 6)) / (1 - dryness);
+  return p_critical * Math.exp(idx);
+}
+
+// 飽和水蒸気量 [g/m³]
+function satVaporAmount(t_C) {
+  return 217 * satPressureWagner(t_C) * 10 / (t_C + 273.15);
+}
+
+// 比容積 [m³/kg]
+function specificVolume(t_C, h_abs) {
+  return (R_a + h_abs * R_w) * (t_C + 273.15) / P_0;
+}
+
+// 相対湿度 [%]
+function relHumidity(t_C, h_abs) {
+  const sat_svw = satVaporAmount(t_C);
+  const sv = specificVolume(t_C, h_abs);
+  return (h_abs / sv) / (sat_svw / 1000) * 100;
+}
+
+// 湿球温度 Wexler-Hylandの式＋二分法 (from MainActivity.java)
+function wetBulb(t_da, rh_pct, h_abs) {
+  const p_sat_sv = satPressureWagner(t_da);
+  const p_v = rh_pct / 100 * p_sat_sv;
+  let min_t_wb = -10;
+  let max_t_wb = t_da;
+  let mid_t_wb = (max_t_wb + min_t_wb) / 2;
+  let iter = 0;
+  while (max_t_wb - min_t_wb >= 1e-3 && iter++ < 200) {
+    const t = mid_t_wb + 273.15;
+    const idx = -5800.2206/t + 1.3914993
+      - 0.048640239*t
+      + 0.41764768e-4 * Math.pow(t,2)
+      - 0.14452093e-7 * Math.pow(t,3)
+      + 0.65459673*10 * Math.log(t);
+    const ew = Math.pow(2.71828, idx) / 1000;
+    const sprung = ew - 0.000662 * P_0 * (t_da - mid_t_wb) - p_v;
+    if (sprung > 0) max_t_wb = mid_t_wb;
+    else min_t_wb = mid_t_wb;
+    mid_t_wb = (max_t_wb + min_t_wb) / 2;
+  }
+  return mid_t_wb;
+}
+
+// 露点温度 August-Roche-Magnus (from MainActivity.java)
+function dewPoint(t_C, rh_pct) {
+  const lnRH = Math.log(rh_pct / 100);
+  const t_term = 17.625 * t_C / (243.04 + t_C);
+  return 243.04 * (lnRH + t_term) / (17.625 - lnRH - t_term);
+}
+
+// 比エンタルピー [kJ/kg]
+function enthalpy(t_C, h_abs) {
+  return 1.006 * t_C + (1.805 * t_C + 2501) * h_abs;
+}
+
+// 全プロパティ計算
+function calcProps(t_da, h_abs) {
+  const sat_svw = satVaporAmount(t_da);
+  const sv = specificVolume(t_da, h_abs);
+  const rh = (h_abs / sv) / (sat_svw / 1000) * 100;
+  const p_v = rh / 100 * satPressureWagner(t_da);
+  const wbt = wetBulb(t_da, rh, h_abs);
+  const se = enthalpy(t_da, h_abs);
+  let adp = NaN;
+  if (rh > 0 && rh < 100) {
+    try { adp = dewPoint(t_da, rh); } catch(e){}
+  }
+  return { t_da, h_abs, rh, sv, wbt, se, adp };
+}
+
+// ═══════════════════════════════════════════════════════
+//  APP STATE
+// ═══════════════════════════════════════════════════════
+const state = {
+  calcType: 0,       // 0=heating,1=cooling,4=mixing
+  btnState: 'p1',   // 'p1','p3','p2','done'
+  increment: 0,      // 0,5,10
+  pointSize: { r1: 8, r2: 4 },
+
+  // Current hover/cursor point
+  cur: null,         // { cx, cy, t_da, h_abs }
+
+  // Fixed points
+  p1: null, p1props: null,
+  p3: null, p3props: null,
+  p2: null, p2props: null,
+
+  // Mixing volumes
+  vol1: 100, vol3: 100,
+
+  // Graph geometry (set in drawChart)
+  geo: null,
+};
+
+// ═══════════════════════════════════════════════════════
+//  CANVAS COORDINATE TRANSFORMS
+// ═══════════════════════════════════════════════════════
+function buildGeo(cW, cH, f) {
+  // From MainFragment.java:
+  // ori_x1 = 0.2*f  ori_y1 = 4.5*f  ori_x2 = 5.2*f  ori_y2 = 0.5*f
+  // t_da from -10 to 50 → 60 divisions over 5*f
+  // h_abs 0..0.04 → displayed 0..40 in units, over 4*f height
+  return {
+    f,
+    ox1: 0.2 * f,
+    oy1: 4.5 * f,
+    ox2: 5.2 * f,
+    oy2: 0.5 * f,
+  };
+}
+
+function tToX(t, geo) {
+  // ix = t+10, x = ori_x1 + ix*5*f/60
+  return geo.ox1 + (t + 10) * 5 * geo.f / 60;
+}
+
+function hToY(h_abs, geo) {
+  // y = ori_y1 - h_abs*100*f   (from enthalpy drawing)
+  // but for RH drawing: y = ori_y1 - abs_humidity*4*f/50
+  // Checking: h_abs is in kg/kg.
+  // From onGetValue: h_abs=(ori_y1-fg_y)*0.01/f → fg_y = ori_y1 - h_abs*100*f
+  return geo.oy1 - h_abs * 100 * geo.f;
+}
+
+function xyToTH(cx, cy, geo, increment) {
+  // t_da from MainFragment: x_axis = 0.6*cx_ratio - 10
+  // cx_ratio = Math.floor((cx - ori_x1)/(ori_x2-ori_x1)*100)
+  let cx_ratio = Math.floor((cx - geo.ox1) / (geo.ox2 - geo.ox1) * 100);
+  let t_da;
+  if (increment === 0) {
+    t_da = 0.6 * cx_ratio - 10;
+  } else if (increment === 5) {
+    t_da = Math.round(2 * (0.6 * cx_ratio - 10)) * 0.5;
+  } else {
+    t_da = Math.round(0.6 * cx_ratio - 10);
+  }
+  // h_abs from onGetValue: h_abs=(ori_y1-fg_y)*0.01/f
+  const h_abs = (geo.oy1 - cy) * 0.01 / geo.f;
+  return { t_da, h_abs, cx_ratio };
+}
+
+// ═══════════════════════════════════════════════════════
+//  CANVAS DRAWING
+// ═══════════════════════════════════════════════════════
+const canvas = document.getElementById('chart');
+const ctx = canvas.getContext('2d');
+let dpr = 1;
+
+function resizeCanvas() {
+  dpr = window.devicePixelRatio || 1;
+  const wrap = canvas.parentElement;
+  const w = wrap.clientWidth;
+  const h = wrap.clientHeight;
+  canvas.width  = w * dpr;
+  canvas.height = h * dpr;
+  canvas.style.width  = w + 'px';
+  canvas.style.height = h + 'px';
+  drawChart();
+}
+
+function drawChart() {
+  const W = canvas.width / dpr;
+  const H = canvas.height / dpr;
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+
+  // f from MainFragment: f = 125*c_wide/720
+  const f = 125 * W / 720;
+  const geo = buildGeo(W, H, f);
+  state.geo = geo;
+
+  // Background
+  ctx.fillStyle = '#fff';
+  ctx.fillRect(0, 0, W, H);
+
+  // ── Border rect
+  ctx.strokeStyle = '#222';
+  ctx.lineWidth = 1;
+  ctx.strokeRect(geo.ox1, geo.oy2, geo.ox2 - geo.ox1, geo.oy1 - geo.oy2);
+
+  const suff = f / 4 | 0;
+  const suff2 = f / 5 | 0;
+  const suff5 = f / 6 | 0;
+
+  // ── Axis labels
+  ctx.fillStyle = '#222';
+  ctx.font = `${suff2}px 'IBM Plex Mono', monospace`;
+  ctx.textAlign = 'center';
+
+  // X axis (temperature -10 to 50, every 4 steps = every 4℃ approximately)
+  for (let ix = 0; ix <= 60; ix++) {
+    const stopX = geo.ox1 + ix * 5 * f / 60;
+    // tick
+    ctx.beginPath();
+    ctx.strokeStyle = '#222'; ctx.lineWidth = 0.8;
+    ctx.moveTo(stopX, geo.oy1);
+    ctx.lineTo(stopX, geo.oy1 - 6);
+    ctx.stroke();
+    if (ix % 4 === 0) {
+      const t_graph = ix - 10;
+      ctx.fillStyle = '#222';
+      ctx.fillText(String(t_graph), stopX, geo.oy1 + f / 3);
+    }
+  }
+  ctx.fillText('乾球温度 Dry-Bulb Temperature [°C]', (geo.ox2 - geo.ox1) / 2 + geo.ox1, geo.oy1 + f * 0.65);
+
+  // Y axis (absolute humidity 0 to 0.040, every 4 steps = 0.004)
+  ctx.textAlign = 'right';
+  for (let iy = 0; iy <= 40; iy++) {
+    const stopY = geo.oy1 - iy * 5 * f / 50;
+    ctx.beginPath();
+    ctx.strokeStyle = '#222'; ctx.lineWidth = 0.8;
+    ctx.moveTo(geo.ox2, stopY);
+    ctx.lineTo(geo.ox2 - 6, stopY);
+    ctx.stroke();
+    if (iy % 4 === 0) {
+      const x_graph = (iy * 0.001).toFixed(3);
+      ctx.fillStyle = '#222';
+      ctx.fillText(x_graph, geo.ox2 + f * 0.55, stopY + f / 40);
+    }
+  }
+
+  // Y axis title (rotated) - simplified
+  ctx.save();
+  ctx.translate(geo.ox2 + f * 0.75, geo.oy2 + (geo.oy1 - geo.oy2) / 2);
+  ctx.rotate(Math.PI / 2);
+  ctx.textAlign = 'center';
+  ctx.font = `${suff5}px 'Noto Sans JP', sans-serif`;
+  ctx.fillStyle = '#555';
+  ctx.fillText('絶対湿度 W [kg/kg\']', 0, 0);
+  ctx.restore();
+
+  // ── RH curves (from MainFragment.java)
+  for (let ix = 0; ix <= 59; ix++) {
+    for (let fai = 1; fai <= 10; fai++) {
+      const p_crit_h = 221200; // hPa
+      const t1 = ix - 10;
+      const dry1 = 1 - (t1 + 273.15) / t_critical;
+      const mul1 = (-7.76451*dry1 + 1.45838*Math.pow(dry1,1.5) - 2.7758*Math.pow(dry1,3) - 1.23303*Math.pow(dry1,6)) / (1 - dry1);
+      const psat1 = p_crit_h * Math.exp(mul1);
+      const vsat1 = 217 * psat1 / (t1 + 273.15);
+      const abs1  = fai * 0.1 * vsat1 * (Math.pow(t1,2)*0.0001+1) / 1000; // kg/kg
+
+      const t2 = ix - 10 + 1;
+      const dry2 = 1 - (t2 + 273.15) / t_critical;
+      const mul2 = (-7.76451*dry2 + 1.45838*Math.pow(dry2,1.5) - 2.7758*Math.pow(dry2,3) - 1.23303*Math.pow(dry2,6)) / (1 - dry2);
+      const psat2 = p_crit_h * Math.exp(mul2);
+      const vsat2 = 217 * psat2 / (t2 + 273.15);
+      const abs2  = fai * 0.1 * vsat2 * (Math.pow(t2,2)*0.0001+1) / 1000;
+
+      const x1d = geo.ox1 + ix * 5 * f / 60;
+      const y1d = geo.oy1 - abs1 * 100 * f;
+      const x2d = geo.ox1 + (ix+1) * 5 * f / 60;
+      const y2d = geo.oy1 - abs2 * 100 * f;
+
+      if (y1d >= geo.oy2) {
+        ctx.beginPath();
+        ctx.strokeStyle = fai === 10 ? 'rgba(0,0,0,0.5)' : 'rgba(0,0,0,0.2)';
+        ctx.lineWidth = fai === 10 ? 1.2 : 0.7;
+        let y1c = y1d, y2c = y2d, x2c = x2d;
+        if (y2d < geo.oy2) { y2c = geo.oy2; x2c = x1d + (x2d-x1d)*(y1d-geo.oy2)/(y1d-y2d); }
+        ctx.moveTo(x1d, y1c); ctx.lineTo(x2c, y2c); ctx.stroke();
+
+        // RH label
+        if (ix === 40) {
+          const ang = Math.atan2(y2d - y1d, x2d - x1d);
+          ctx.save();
+          ctx.translate(x2d, y2d);
+          ctx.rotate(ang);
+          ctx.font = `${suff5}px 'IBM Plex Mono', monospace`;
+          ctx.fillStyle = '#444';
+          ctx.textAlign = 'left';
+          ctx.fillText(`${fai*10}%`, f/5, 0);
+          ctx.restore();
+        }
+      }
+    }
+  }
+
+  // ── Enthalpy lines (from MainFragment.java)
+  const a_ent = (0.03375 - 0.00018) / (34.0496 + 9.79);
+  const b_ent = 0.00977;
+
+  for (let s_e = 0; s_e <= 125; s_e += 10) {
+    for (let ix = 0; ix <= 59; ix++) {
+      const t1 = ix - 10;
+      const abs1 = (s_e - 1.006*t1) / (1.86*t1 + 2501);
+      const t2 = t1 + 1;
+      const abs2 = (s_e - 1.006*t2) / (1.86*t2 + 2501);
+
+      const x1d = geo.ox1 + ix * 5 * f / 60;
+      const y1d = geo.oy1 - abs1 * 100 * f;
+      const x2d = geo.ox1 + (ix+1) * 5 * f / 60;
+      const y2d = geo.oy1 - abs2 * 100 * f;
+
+      if (abs1 < a_ent*t1+b_ent && abs2 >= 0 && abs1 <= 0.04) {
+        ctx.beginPath();
+        ctx.strokeStyle = 'rgba(100,100,100,0.3)';
+        ctx.lineWidth = 0.6;
+        ctx.moveTo(x1d, y1d);
+        ctx.lineTo(x2d, y2d);
+        ctx.stroke();
+      }
+    }
+    // Enthalpy number label
+    const count2 = s_e / 10 + 1;
+    const lx = geo.ox1 - 30 + count2 * 5*f/31 * (30/12);
+    const ly = geo.oy1 + 5  - count2 * 5*f/39.7 * (42/12);
+    const t_lbl = Math.min(59, Math.max(0, count2)) - 10;
+    const abs_lbl = (s_e - 1.006*t_lbl)/(1.86*t_lbl+2501);
+    const t_lbl2 = t_lbl + 1;
+    const abs_lbl2 = (s_e - 1.006*t_lbl2)/(1.86*t_lbl2+2501);
+    const ang = Math.atan2(
+      geo.oy1 - abs_lbl2*100*f - (geo.oy1 - abs_lbl*100*f),
+      geo.ox1 + (count2+1)*5*f/60 - (geo.ox1 + count2*5*f/60)
+    );
+    ctx.save();
+    ctx.translate(lx, ly);
+    ctx.rotate(ang * 0.8);
+    ctx.font = `${suff5}px 'IBM Plex Mono', monospace`;
+    ctx.fillStyle = '#666';
+    ctx.textAlign = 'left';
+    if (lx > geo.ox1 - 10 && ly > geo.oy2 && ly < geo.oy1) {
+      ctx.fillText(String(s_e), 0, 0);
+    }
+    ctx.restore();
+  }
+
+  // Enthalpy reference line (light gray, from MainFragment)
+  const x1_ent = geo.ox1 * (1 + 0.0875);
+  const y1_ent = geo.oy1 * (1 - 0.04);
+  const x2_ent = geo.ox1 * (1 + 18.354);
+  const y2_ent = geo.oy1 * (1 - 0.75);
+  ctx.beginPath();
+  ctx.strokeStyle = 'rgba(180,180,180,0.6)';
+  ctx.lineWidth = 2;
+  ctx.moveTo(x1_ent, y1_ent);
+  ctx.lineTo(x2_ent, y2_ent);
+  ctx.stroke();
+
+  // ── Axis title (enthalpy, rotated -43°)
+  ctx.save();
+  ctx.translate(geo.ox1 + f, geo.oy1 - 1.2*f);
+  ctx.rotate(-43 * Math.PI / 180);
+  ctx.font = `${suff2}px 'Noto Sans JP', sans-serif`;
+  ctx.fillStyle = '#444';
+  ctx.textAlign = 'center';
+  ctx.fillText('比エンタルピー h [kJ/kg(DA)]', 0.6*f, -0.4*f);
+  ctx.restore();
+
+  // ── Draw fixed points & lines
+  const r1 = state.pointSize.r1;
+  const r2 = state.pointSize.r2;
+
+  // Connection lines
+  if (state.p1 && state.p2) {
+    ctx.beginPath();
+    ctx.strokeStyle = 'rgba(100,100,100,0.5)';
+    ctx.lineWidth = 1.5;
+    ctx.setLineDash([4, 3]);
+    ctx.moveTo(state.p1.cx, state.p1.cy);
+    ctx.lineTo(state.p2.cx, state.p2.cy);
+    ctx.stroke();
+    ctx.setLineDash([]);
+  }
+  if (state.p1 && state.p3) {
+    ctx.beginPath();
+    ctx.strokeStyle = 'rgba(100,100,100,0.5)';
+    ctx.lineWidth = 1.5;
+    ctx.setLineDash([4, 3]);
+    ctx.moveTo(state.p1.cx, state.p1.cy);
+    ctx.lineTo(state.p3.cx, state.p3.cy);
+    ctx.stroke();
+    ctx.setLineDash([]);
+  }
+
+  // Point 1 (red)
+  if (state.p1) drawPoint(state.p1.cx, state.p1.cy, '#c0392b', r1, r2);
+  // Point 3 (green)
+  if (state.p3) drawPoint(state.p3.cx, state.p3.cy, '#27ae60', r1, r2);
+  // Point 2 (blue)
+  if (state.p2) drawPoint(state.p2.cx, state.p2.cy, '#2980b9', r1, r2);
+
+  // Current cursor point
+  if (state.cur) {
+    const col = {p1:'#c0392b', p3:'#27ae60', p2:'#2980b9', done:'#888'}[state.btnState] || '#888';
+    drawPoint(state.cur.cx, state.cur.cy, col, r1*0.8, r2*0.6, true);
+  }
+}
+
+function drawPoint(cx, cy, color, r1, r2, ghost=false) {
+  ctx.save();
+  ctx.globalAlpha = ghost ? 0.45 : 1;
+  ctx.strokeStyle = color;
+  ctx.lineWidth = 1.5;
+  ctx.fillStyle = color;
+  ctx.beginPath();
+  ctx.arc(cx, cy, r1, 0, Math.PI*2);
+  ctx.stroke();
+  ctx.beginPath();
+  ctx.arc(cx, cy, r2, 0, Math.PI*2);
+  ctx.fill();
+  ctx.restore();
+}
+
+// ═══════════════════════════════════════════════════════
+//  UI UPDATES
+// ═══════════════════════════════════════════════════════
+function setVal(id, val, decimals=2) {
+  const el = document.getElementById(id);
+  if (!el) return;
+  if (val === null || val === undefined || isNaN(val)) {
+    el.textContent = '—';
+    el.className = 'value empty';
+  } else {
+    el.textContent = typeof decimals === 'number' ? val.toFixed(decimals) : val;
+    el.className = 'value';
+  }
+}
+
+function updateSidebarCurrent(props) {
+  if (!props) {
+    ['v_dbt','v_absh','v_wbt','v_rh','v_adp','v_sv','v_se'].forEach(id => {
+      const el = document.getElementById(id);
+      if (el) { el.textContent='—'; el.className='value empty'; }
+    });
+    return;
+  }
+  setVal('v_dbt',  props.t_da, 2);
+  setVal('v_absh', props.h_abs, 5);
+  setVal('v_wbt',  props.wbt, 2);
+  setVal('v_rh',   props.rh, 2);
+  setVal('v_adp',  props.adp, 2);
+  setVal('v_sv',   props.sv, 4);
+  setVal('v_se',   props.se, 2);
+}
+
+function updateBtnStates() {
+  const t = state.calcType;
+  const s = state.btnState;
+
+  const btnP1   = document.getElementById('btnP1');
+  const btnP3   = document.getElementById('btnP3');
+  const btnP2   = document.getElementById('btnP2');
+  const btnCalc = document.getElementById('btnCalc');
+
+  // P1 active when btnState is 'p1'
+  btnP1.disabled   = s !== 'p1';
+  btnP3.disabled   = s !== 'p3';
+  btnP2.disabled   = s !== 'p2';
+  btnCalc.disabled = s !== 'done' || (!state.p1 || (t !== 4 && !state.p2) || (t === 4 && !state.p3));
+
+  // Badges
+  document.getElementById('badgeP1').classList.toggle('inactive', !state.p1);
+  document.getElementById('badgeP3').classList.toggle('inactive', !state.p3);
+  document.getElementById('badgeP2').classList.toggle('inactive', !state.p2);
+}
+
+function updateMixingUI() {
+  const mix = state.calcType === 4;
+  ['volGroup1','volGroup3','btnP3','sec_p3','badgeP3'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.style.display = mix ? '' : 'none';
+  });
+}
+
+// ═══════════════════════════════════════════════════════
+//  TOAST
+// ═══════════════════════════════════════════════════════
+let toastTimer;
+function toast(msg, dur=3000) {
+  const el = document.getElementById('toast');
+  el.textContent = msg;
+  el.classList.add('show');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => el.classList.remove('show'), dur);
+}
+
+// ═══════════════════════════════════════════════════════
+//  CANVAS INTERACTION
+// ═══════════════════════════════════════════════════════
+function getCanvasPoint(e) {
+  const rect = canvas.getBoundingClientRect();
+  const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+  const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+  return {
+    cx: (clientX - rect.left),
+    cy: (clientY - rect.top),
+  };
+}
+
+function isInBounds(cx, cy, geo) {
+  return cx >= geo.ox1 && cx <= geo.ox2 && cy >= geo.oy2 && cy <= geo.oy1;
+}
+
+// Check if point is below RH=100% curve
+function isBelowSaturation(t_da, h_abs) {
+  // Use same formula as MainFragment onTouchEvent check
+  const p_crit_h = 221200;
+  const dryness = 1 - (t_da + 273.15) / t_critical;
+  const mul = (-7.76451*dryness + 1.45838*Math.pow(dryness,1.5) - 2.7758*Math.pow(dryness,3) - 1.23303*Math.pow(dryness,6)) / (1-dryness);
+  const p_sat = p_crit_h * Math.exp(mul);
+  const v_sat = 217 * p_sat / (t_da + 273.15);
+  const sv = specificVolume(t_da, h_abs);
+  const y_axis = 10 * 0.1 * v_sat * (Math.pow(t_da,2)*0.0001+sv) / 1000;
+  return y_axis >= h_abs;
+}
+
+let pointerDownTime = 0;
+
+canvas.addEventListener('pointerdown', e => {
+  pointerDownTime = Date.now();
+});
+
+canvas.addEventListener('pointermove', e => {
+  if (!state.geo) return;
+  const { cx, cy } = getCanvasPoint(e);
+  if (!isInBounds(cx, cy, state.geo)) {
+    state.cur = null;
+    document.getElementById('chartStatus').textContent = 'クリック / タップで空気状態を選択';
+    drawChart();
+    return;
+  }
+  const { t_da, h_abs } = xyToTH(cx, cy, state.geo, state.increment);
+  if (h_abs < 0 || h_abs > 0.04) { state.cur = null; drawChart(); return; }
+  state.cur = { cx, cy, t_da, h_abs };
+  const props = calcProps(t_da, h_abs);
+  updateSidebarCurrent(props);
+  document.getElementById('chartStatus').textContent =
+    `T=${t_da.toFixed(1)}°C  W=${h_abs.toFixed(5)}  φ=${props.rh.toFixed(1)}%`;
+  drawChart();
+});
+
+canvas.addEventListener('pointerup', e => {
+  const elapsed = Date.now() - pointerDownTime;
+  if (elapsed < 100) return; // too short tap, ignore
+
+  if (!state.geo) return;
+  const { cx, cy } = getCanvasPoint(e);
+  if (!isInBounds(cx, cy, state.geo)) {
+    toast('グラフ領域内をクリックしてください');
+    return;
+  }
+  const { t_da, h_abs } = xyToTH(cx, cy, state.geo, state.increment);
+  if (h_abs < 0 || h_abs > 0.04) {
+    toast('相対湿度100%以下の範囲を選択してください');
+    return;
+  }
+  if (!isBelowSaturation(t_da, h_abs)) {
+    toast('相対湿度100%を超えています。範囲外です。');
+    return;
+  }
+
+  const props = calcProps(t_da, h_abs);
+  const t = state.calcType;
+
+  if (state.btnState === 'p1') {
+    // Set point 1
+    state.p1 = { cx, cy, t_da, h_abs };
+    state.p1props = props;
+    setVal('r_x1',  props.t_da, 2);
+    setVal('r_rh1', props.rh, 2);
+    setVal('r_se1', props.se, 2);
+    document.getElementById('badgeP1').classList.remove('inactive');
+
+    if (t === 4) {
+      // Mixing: next is P3
+      state.btnState = 'p3';
+      toast('点①をセットしました。次に点③を選択してください（緑）');
+    } else {
+      state.btnState = 'p2';
+      toast('点①をセットしました。次に点②を選択してください（青）');
+    }
+
+  } else if (state.btnState === 'p3') {
+    // Mixing point 3
+    state.p3 = { cx, cy, t_da, h_abs };
+    state.p3props = props;
+    setVal('r_x3',  props.t_da, 2);
+    setVal('r_rh3', props.rh, 2);
+    setVal('r_se3', props.se, 2);
+    document.getElementById('badgeP3').classList.remove('inactive');
+
+    // Auto-calculate mixing point 2 position on chart
+    const v1 = state.vol1, v3 = state.vol3;
+    const cx2 = (state.p1.cx * v1 + cx * v3) / (v1 + v3);
+    const cy2 = (state.p1.cy * v1 + cy * v3) / (v1 + v3);
+    state.p2 = { cx: cx2, cy: cy2 };
+
+    state.btnState = 'done';
+    toast('点③をセットしました。計算ボタンを押してください。');
+
+  } else if (state.btnState === 'p2') {
+    // Non-mixing point 2
+    let finalCx = cx, finalCy = cy;
+
+    if (t === 0) {
+      // Heating: fix Y (same h_abs as P1), only X changes rightward
+      if (!state.p1) { toast('先に点①をセットしてください'); return; }
+      if (cx <= state.p1.cx) {
+        toast('加熱は温度が上昇する方向（右）を選択してください');
+        return;
+      }
+      finalCy = state.p1.cy;
+
+    } else if (t === 1) {
+      // Cooling
+      if (!state.p1) { toast('先に点①をセットしてください'); return; }
+      if (cx >= state.p1.cx) {
+        toast('冷却は温度が低下する方向（左）を選択してください');
+        return;
+      }
+      if (cy < state.p1.cy) {
+        // Sensible only: fix Y
+        finalCy = state.p1.cy;
+      }
+      finalCx = cx;
+    }
+
+    const { t_da: t2, h_abs: h2 } = xyToTH(finalCx, finalCy, state.geo, state.increment);
+    const props2 = calcProps(t2, h2);
+    state.p2 = { cx: finalCx, cy: finalCy, t_da: t2, h_abs: h2 };
+    state.p2props = props2;
+    setVal('r_x2',  props2.t_da, 2);
+    setVal('r_rh2', props2.rh, 2);
+    setVal('r_se2', props2.se, 2);
+    document.getElementById('badgeP2').classList.remove('inactive');
+    state.btnState = 'done';
+    toast('点②をセットしました。計算ボタンを押してください。');
+  }
+
+  updateBtnStates();
+  drawChart();
+});
+
+canvas.addEventListener('mouseleave', () => {
+  state.cur = null;
+  updateSidebarCurrent(null);
+  drawChart();
+});
+
+// ═══════════════════════════════════════════════════════
+//  BUTTON HANDLERS
+// ═══════════════════════════════════════════════════════
+
+// Calc type selector
+document.getElementById('calcType').addEventListener('change', function() {
+  state.calcType = parseInt(this.value);
+  resetAll();
+  updateMixingUI();
+});
+
+// Vol inputs
+document.getElementById('vol1').addEventListener('input', function() {
+  state.vol1 = parseInt(this.value) || 1;
+});
+document.getElementById('vol3').addEventListener('input', function() {
+  state.vol3 = parseInt(this.value) || 1;
+});
+
+// P1 button
+document.getElementById('btnP1').addEventListener('click', () => {
+  if (state.btnState !== 'p1') { toast('まずリセットしてください'); return; }
+  toast('グラフ上で点①（変化前の状態）をクリックしてください');
+});
+
+// P3 button
+document.getElementById('btnP3').addEventListener('click', () => {
+  if (state.btnState !== 'p3') { toast('先に点①をセットしてください'); return; }
+  toast('グラフ上で点③（混合する空気の状態）をクリックしてください');
+});
+
+// P2 button
+document.getElementById('btnP2').addEventListener('click', () => {
+  if (state.btnState !== 'p2') { toast('先に点①をセットしてください'); return; }
+  toast('グラフ上で点②（変化後の状態）をクリックしてください');
+});
+
+// Calc button
+document.getElementById('btnCalc').addEventListener('click', () => {
+  const t = state.calcType;
+
+  if (t !== 4) {
+    // Heating / Cooling: calculate enthalpy difference
+    if (!state.p1props || !state.p2props) { toast('点①と点②をセットしてください'); return; }
+    const dh = state.p2props.se - state.p1props.se;
+    document.getElementById('result_enthalpy_diff').style.display = '';
+    document.getElementById('result_mixing').style.display = 'none';
+    setVal('r_dh', dh, 2);
+    toast(`計算完了！ Δh = ${dh.toFixed(2)} kJ/kg`);
+
+  } else {
+    // Mixing calculation (from MainActivity.java button_calc)
+    if (!state.p1 || !state.p3) { toast('点①と点③をセットしてください'); return; }
+    const v1 = state.vol1, v3 = state.vol3;
+    const v2 = v1 + v3;
+    const t2    = (v1 * state.p1.t_da  + v3 * state.p3.t_da)  / v2;
+    const absh2 = (v1 * state.p1.h_abs + v3 * state.p3.h_abs) / v2;
+
+    const props2 = calcProps(t2, absh2);
+
+    // Update point 2
+    const cx2 = (state.p1.cx * v1 + state.p3.cx * v3) / v2;
+    const cy2 = (state.p1.cy * v1 + state.p3.cy * v3) / v2;
+    state.p2 = { cx: cx2, cy: cy2, t_da: t2, h_abs: absh2 };
+    state.p2props = props2;
+
+    setVal('r_x2',  props2.t_da, 2);
+    setVal('r_rh2', props2.rh, 2);
+    setVal('r_se2', props2.se, 2);
+
+    document.getElementById('result_enthalpy_diff').style.display = 'none';
+    document.getElementById('result_mixing').style.display = '';
+    setVal('rm_dbt',  props2.t_da, 2);
+    setVal('rm_absh', props2.h_abs, 5);
+    setVal('rm_wbt',  props2.wbt, 2);
+    setVal('rm_rh',   props2.rh, 2);
+    setVal('rm_adp',  props2.adp, 2);
+    setVal('rm_sv',   props2.sv, 4);
+    setVal('rm_se',   props2.se, 2);
+
+    document.getElementById('badgeP2').classList.remove('inactive');
+
+    if (props2.rh >= 99) {
+      toast('⚠ 混合後の相対湿度が100%を超えています。点③を再設定してください。', 5000);
+    } else {
+      toast(`混合計算完了！ T=${t2.toFixed(2)}°C φ=${props2.rh.toFixed(1)}%`);
+    }
+
+    drawChart();
+  }
+
+  updateBtnStates();
+});
+
+// Reset button
+document.getElementById('btnRst').addEventListener('click', resetAll);
+
+function resetAll() {
+  state.p1 = state.p1props = null;
+  state.p3 = state.p3props = null;
+  state.p2 = state.p2props = null;
+  state.cur = null;
+  state.btnState = 'p1';
+
+  ['r_x1','r_rh1','r_se1','r_x3','r_rh3','r_se3','r_x2','r_rh2','r_se2','r_dh',
+   'rm_dbt','rm_absh','rm_wbt','rm_rh','rm_adp','rm_sv','rm_se'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) { el.textContent = '—'; el.className = 'value empty'; }
+  });
+  document.getElementById('result_enthalpy_diff').style.display = 'none';
+  document.getElementById('result_mixing').style.display = 'none';
+  updateSidebarCurrent(null);
+  updateBtnStates();
+  drawChart();
+}
+
+// ── Settings
+document.querySelectorAll('input[name="inc"]').forEach(r => {
+  r.addEventListener('change', () => {
+    state.increment = parseInt(r.value);
+  });
+});
+
+document.querySelectorAll('input[name="ps"]').forEach(r => {
+  r.addEventListener('change', () => {
+    const map = { small: {r1:8,r2:4}, mid: {r1:12,r2:6}, large: {r1:16,r2:8} };
+    state.pointSize = map[r.value] || map.small;
+    drawChart();
+  });
+});
+
+// ═══════════════════════════════════════════════════════
+//  INIT
+// ═══════════════════════════════════════════════════════
+updateMixingUI();
+updateBtnStates();
+resizeCanvas();
+window.addEventListener('resize', resizeCanvas);
+</script>
+</body>
+</html>
