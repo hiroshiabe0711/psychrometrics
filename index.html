@@ -183,20 +183,21 @@ canvas#chart {
 .zoom-controls {
   display: flex;
   align-items: center;
-  gap: 4px;
+  gap: 6px;
   z-index: 20;
   background: rgba(255,255,255,0.95);
   border-bottom: 1px solid var(--border);
-  padding: 5px 10px;
+  padding: 4px 10px;
   flex-shrink: 0;
   justify-content: flex-end;
 }
 .zoom-btn {
-  width: 24px; height: 24px;
+  min-width: 2em;
+  height: 2em;
   background: var(--surface2);
   border: 1px solid var(--border2);
   border-radius: 3px;
-  font-size: var(--sf-md);
+  font-size: var(--sf-sm);
   font-family: 'IBM Plex Mono', monospace;
   cursor: pointer;
   display: flex; align-items: center; justify-content: center;
@@ -204,13 +205,14 @@ canvas#chart {
   transition: all 0.15s;
   user-select: none;
   line-height: 1;
+  padding: 0 6px;
 }
 .zoom-btn:hover { background: var(--accent2); color: white; border-color: var(--accent2); }
 .zoom-label {
   font-family: 'IBM Plex Mono', monospace;
   font-size: var(--sf-sm);
   color: var(--ink2);
-  min-width: 36px;
+  min-width: 3em;
   text-align: center;
   cursor: pointer;
 }
@@ -503,11 +505,11 @@ canvas#chart {
 
     <!-- ズームコントロール（スクロール外・固定） -->
     <div class="zoom-controls">
-      <span style="font-size:11px;color:var(--ink3);margin-right:4px">ズーム</span>
+      <span style="font-size:var(--sf-xs);color:var(--ink3)">ズーム</span>
       <button class="zoom-btn" id="zoomOut" title="縮小">－</button>
       <div class="zoom-label" id="zoomLabel" title="クリックでリセット">100%</div>
       <button class="zoom-btn" id="zoomIn" title="拡大">＋</button>
-      <span style="font-size:10px;color:var(--ink3);margin-left:8px">ホイール・ピンチでもズーム可</span>
+      <span style="font-size:var(--sf-xs);color:var(--ink3);margin-left:6px">ホイール・ピンチでもズーム可</span>
     </div>
 
     <!-- スクロール領域 -->
