@@ -312,12 +312,18 @@ canvas#chart {
   gap: 8px;
 }
 .setting-row label { font-size: var(--sf-sm); color: var(--ink3); white-space: nowrap; }
-.radio-group { display: flex; gap: 6px; flex-wrap: wrap; }
+.radio-group { display: flex; gap: 6px; flex-wrap: wrap; align-items: center; }
 .radio-group label {
-  display: flex; align-items: center; gap: 3px;
+  display: flex; align-items: center; gap: 4px;
   font-size: var(--sf-sm); color: var(--ink2); cursor: pointer;
 }
-.radio-group input { cursor: pointer; accent-color: var(--accent2); }
+.radio-group input[type="radio"] {
+  cursor: pointer;
+  accent-color: var(--accent2);
+  width: var(--sf-md);
+  height: var(--sf-md);
+  flex-shrink: 0;
+}
 
 /* ── CHART STATUS ── */
 .chart-status {
@@ -731,7 +737,7 @@ const state = {
   calcType: 0,
   btnState: 'p1',    // 'p1' 'p3' 'p2' 'done'
   increment: 0,
-  pointSize: { r1:8, r2:4 },
+  pointSize: { r1:16, r2:8 },
   zoom: 1.0,
   panX: 0, panY: 0,
   cur: null,
@@ -1488,7 +1494,7 @@ document.querySelectorAll('input[name="inc"]').forEach(r=>{
 });
 document.querySelectorAll('input[name="ps"]').forEach(r=>{
   r.addEventListener('change', ()=>{
-    const m={small:{r1:8,r2:4},mid:{r1:12,r2:6},large:{r1:16,r2:8}};
+    const m={small:{r1:16,r2:8},mid:{r1:24,r2:12},large:{r1:32,r2:16}};
     state.pointSize=m[r.value]||m.small; drawChart();
   });
 });
