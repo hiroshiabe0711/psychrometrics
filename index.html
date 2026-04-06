@@ -52,15 +52,15 @@ header {
 }
 header .title {
   font-family: 'IBM Plex Mono', monospace;
-  font-size: 13px;
+  font-size: var(--sf-md);
   letter-spacing: 2px;
   text-transform: uppercase;
 }
-header .sub { font-size: 10px; color: #7fb3d3; letter-spacing: 1px; margin-top: 2px; }
+header .sub { font-size: var(--sf-xs); color: #7fb3d3; letter-spacing: 1px; margin-top: 2px; }
 header .ver {
   margin-left: auto;
   font-family: 'IBM Plex Mono', monospace;
-  font-size: 10px;
+  font-size: var(--sf-xs);
   color: #64b5f6;
   border: 1px solid #64b5f6;
   padding: 2px 8px;
@@ -78,13 +78,13 @@ header .ver {
   flex-wrap: wrap;
   flex-shrink: 0;
 }
-.toolbar label { font-size: 11px; color: var(--ink3); letter-spacing: 0.5px; }
+.toolbar label { font-size: var(--sf-sm); color: var(--ink3); letter-spacing: 0.5px; }
 select {
   background: var(--surface2);
   border: 1px solid var(--border2);
   color: var(--ink);
   font-family: 'Noto Sans JP', sans-serif;
-  font-size: 12px;
+  font-size: var(--sf-sm);
   padding: 5px 8px;
   border-radius: 3px;
   cursor: pointer;
@@ -95,7 +95,7 @@ select:focus { border-color: var(--accent2); }
 
 .btn {
   font-family: 'IBM Plex Mono', monospace;
-  font-size: 11px;
+  font-size: var(--sf-sm);
   letter-spacing: 0.5px;
   padding: 6px 12px;
   border: 1px solid var(--border2);
@@ -116,7 +116,7 @@ select:focus { border-color: var(--accent2); }
 .state-badges { display: flex; gap: 6px; margin-left: auto; }
 .badge {
   font-family: 'IBM Plex Mono', monospace;
-  font-size: 10px;
+  font-size: var(--sf-xs);
   padding: 2px 7px;
   border-radius: 2px;
   border: 1px solid;
@@ -131,14 +131,14 @@ select:focus { border-color: var(--accent2); }
 .badge.p2 .dot { background: var(--blue); }
 .badge.inactive { opacity: 0.25; }
 
-.vol-group { display: flex; align-items: center; gap: 5px; font-size: 11px; color: var(--ink3); }
+.vol-group { display: flex; align-items: center; gap: 5px; font-size: var(--sf-sm); color: var(--ink3); }
 .vol-group input {
   width: 58px;
   background: var(--surface2);
   border: 1px solid var(--border2);
   color: var(--ink);
   font-family: 'IBM Plex Mono', monospace;
-  font-size: 12px;
+  font-size: var(--sf-sm);
   padding: 4px 6px;
   border-radius: 3px;
   text-align: right;
@@ -196,7 +196,7 @@ canvas#chart {
   background: var(--surface2);
   border: 1px solid var(--border2);
   border-radius: 3px;
-  font-size: 15px;
+  font-size: var(--sf-md);
   font-family: 'IBM Plex Mono', monospace;
   cursor: pointer;
   display: flex; align-items: center; justify-content: center;
@@ -208,7 +208,7 @@ canvas#chart {
 .zoom-btn:hover { background: var(--accent2); color: white; border-color: var(--accent2); }
 .zoom-label {
   font-family: 'IBM Plex Mono', monospace;
-  font-size: 11px;
+  font-size: var(--sf-sm);
   color: var(--ink2);
   min-width: 36px;
   text-align: center;
@@ -332,7 +332,7 @@ canvas#chart {
   left: 8px;
   display: inline-block;
   font-family: 'IBM Plex Mono', monospace;
-  font-size: 10px;
+  font-size: var(--sf-xs);
   color: var(--ink3);
   background: rgba(255,255,255,0.9);
   padding: 3px 7px;
@@ -350,7 +350,7 @@ canvas#chart {
   transform: translateX(-50%) translateY(16px);
   background: var(--ink);
   color: var(--bg);
-  font-size: 12px;
+  font-size: var(--sf-sm);
   padding: 9px 18px;
   border-radius: 4px;
   border-left: 3px solid var(--accent2);
