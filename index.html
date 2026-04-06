@@ -302,13 +302,7 @@ canvas#chart {
 .point-header.p2 { background: rgba(41,128,185,0.1); color: var(--blue); }
 .point-header.p3 { background: rgba(39,174,96,0.1); color: var(--green); }
 
-.diff-value {
-  font-family: 'IBM Plex Mono', monospace;
-  font-size: var(--sf-lg);
-  color: var(--accent2);
-  margin: 4px 0 2px;
-}
-.diff-label { font-size: var(--sf-xs); color: var(--ink3); }
+
 
 .setting-row {
   display: flex;
@@ -608,9 +602,10 @@ canvas#chart {
     <div class="sidebar-section">
       <div class="section-title">計算結果</div>
       <div id="result_dh" style="display:none;margin-bottom:8px">
-        <div class="diff-label">エンタルピー差 Δh</div>
-        <div class="diff-value" id="r_dh">—</div>
-        <div class="diff-label">kJ/kg</div>
+        <div class="data-row">
+          <div><div class="label-jp">エンタルピー差</div><div class="label">Δh</div></div>
+          <div><span class="value" id="r_dh">—</span><span class="unit">kJ/kg</span></div>
+        </div>
       </div>
       <div id="result_mixing" style="display:none">
         <div class="data-row">
