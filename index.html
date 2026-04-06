@@ -20,6 +20,11 @@
   --blue: #1a6fa8;
   --accent: #1565c0;
   --accent2: #1976d2;
+  /* サイドバーフォントサイズ（JSで動的更新） */
+  --sf-xs: 10px;
+  --sf-sm: 11px;
+  --sf-md: 13px;
+  --sf-lg: 18px;
 }
 
 * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -257,7 +262,7 @@ canvas#chart {
 
 .section-title {
   font-family: 'IBM Plex Mono', monospace;
-  font-size: 10px;
+  font-size: var(--sf-sm);
   letter-spacing: 2px;
   text-transform: uppercase;
   color: var(--ink3);
@@ -273,20 +278,20 @@ canvas#chart {
   margin-bottom: 6px;
   gap: 6px;
 }
-.data-row .label { font-size: 11px; color: var(--ink3); flex-shrink: 0; }
-.data-row .label-jp { font-size: 10px; color: var(--ink3); opacity: 0.7; }
+.data-row .label { font-size: var(--sf-sm); color: var(--ink3); flex-shrink: 0; }
+.data-row .label-jp { font-size: var(--sf-xs); color: var(--ink3); opacity: 0.7; }
 .data-row .value {
   font-family: 'IBM Plex Mono', monospace;
-  font-size: 13px;
+  font-size: var(--sf-md);
   color: var(--ink);
   text-align: right;
 }
-.data-row .value.empty { color: var(--ink3); font-size: 12px; }
-.data-row .unit { font-size: 10px; color: var(--ink3); margin-left: 2px; }
+.data-row .value.empty { color: var(--ink3); font-size: var(--sf-sm); }
+.data-row .unit { font-size: var(--sf-xs); color: var(--ink3); margin-left: 2px; }
 
 .point-header {
   font-family: 'IBM Plex Mono', monospace;
-  font-size: 10px;
+  font-size: var(--sf-xs);
   letter-spacing: 1px;
   padding: 3px 7px;
   border-radius: 2px;
@@ -299,11 +304,11 @@ canvas#chart {
 
 .diff-value {
   font-family: 'IBM Plex Mono', monospace;
-  font-size: 18px;
+  font-size: var(--sf-lg);
   color: var(--accent2);
   margin: 4px 0 2px;
 }
-.diff-label { font-size: 10px; color: var(--ink3); }
+.diff-label { font-size: var(--sf-xs); color: var(--ink3); }
 
 .setting-row {
   display: flex;
@@ -312,11 +317,11 @@ canvas#chart {
   margin-bottom: 8px;
   gap: 8px;
 }
-.setting-row label { font-size: 11px; color: var(--ink3); white-space: nowrap; }
+.setting-row label { font-size: var(--sf-sm); color: var(--ink3); white-space: nowrap; }
 .radio-group { display: flex; gap: 6px; flex-wrap: wrap; }
 .radio-group label {
   display: flex; align-items: center; gap: 3px;
-  font-size: 11px; color: var(--ink2); cursor: pointer;
+  font-size: var(--sf-sm); color: var(--ink2); cursor: pointer;
 }
 .radio-group input { cursor: pointer; accent-color: var(--accent2); }
 
@@ -804,7 +809,6 @@ let dpr = 1;
 function resizeCanvas() {
   dpr = window.devicePixelRatio || 1;
   const scroll = document.getElementById('chartScroll');
-  // コンテナより大きい固定サイズでキャンバスを作成→常にスクロールバーが出る
   const minW = 1100, minH = 660;
   const w = Math.max(scroll.clientWidth  + 200, minW);
   const h = Math.max(scroll.clientHeight + 150, minH);
@@ -812,6 +816,17 @@ function resizeCanvas() {
   canvas.height = h * dpr;
   canvas.style.width  = w + 'px';
   canvas.style.height = h + 'px';
+
+  // グラフのf値に連動してサイドバーのフォントサイズを更新
+  const f = 125 * w / 720;
+  const suff2 = Math.max(8,  Math.round(f / 5));  // グラフX軸ラベルと同サイズ
+  const suff5 = Math.max(7,  Math.round(f / 6));  // グラフ内数値と同サイズ
+  const root  = document.documentElement;
+  root.style.setProperty('--sf-xs', suff5 + 'px');   // 補助文字
+  root.style.setProperty('--sf-sm', suff5 + 'px');   // ラベル
+  root.style.setProperty('--sf-md', suff2 + 'px');   // 数値
+  root.style.setProperty('--sf-lg', Math.round(suff2 * 1.4) + 'px'); // 大きな値
+
   drawChart();
 }
 
