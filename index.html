@@ -7,19 +7,19 @@
 <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@300;400;600&family=Noto+Sans+JP:wght@300;400;500&display=swap" rel="stylesheet">
 <style>
 :root {
-  --bg: #f0ede8;
-  --surface: #faf8f5;
-  --surface2: #e8e4de;
-  --border: #c8c0b4;
-  --border2: #a09488;
-  --ink: #1a1614;
-  --ink2: #4a4340;
-  --ink3: #7a7068;
+  --bg: #ffffff;
+  --surface: #ffffff;
+  --surface2: #f0f4f8;
+  --border: #c5d8e8;
+  --border2: #93b8d0;
+  --ink: #111111;
+  --ink2: #222222;
+  --ink3: #555555;
   --red: #c0392b;
-  --green: #27ae60;
-  --blue: #2980b9;
-  --accent: #8b4513;
-  --accent2: #d4570a;
+  --green: #1e8449;
+  --blue: #1a6fa8;
+  --accent: #1565c0;
+  --accent2: #1976d2;
 }
 
 * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -36,8 +36,8 @@ body {
 
 /* ── HEADER ── */
 header {
-  background: var(--ink);
-  color: var(--bg);
+  background: #0d2137;
+  color: #e8f4fd;
   padding: 10px 20px;
   display: flex;
   align-items: center;
@@ -51,20 +51,20 @@ header .title {
   letter-spacing: 2px;
   text-transform: uppercase;
 }
-header .sub { font-size: 10px; color: #aaa; letter-spacing: 1px; margin-top: 2px; }
+header .sub { font-size: 10px; color: #7fb3d3; letter-spacing: 1px; margin-top: 2px; }
 header .ver {
   margin-left: auto;
   font-family: 'IBM Plex Mono', monospace;
   font-size: 10px;
-  color: var(--accent2);
-  border: 1px solid var(--accent2);
+  color: #64b5f6;
+  border: 1px solid #64b5f6;
   padding: 2px 8px;
   border-radius: 2px;
 }
 
 /* ── TOOLBAR ── */
 .toolbar {
-  background: var(--surface);
+  background: #ffffff;
   border-bottom: 1px solid var(--border);
   padding: 8px 14px;
   display: flex;
@@ -152,7 +152,7 @@ select:focus { border-color: var(--accent2); }
 /* ── CHART WRAP ── */
 .chart-wrap {
   position: relative;
-  background: white;
+  background: #e8f4fd;
   overflow: hidden;
   flex: 1;
   min-width: 100px;
@@ -163,9 +163,10 @@ select:focus { border-color: var(--accent2); }
 /* スクロール領域 */
 .chart-scroll {
   flex: 1;
-  overflow: scroll;          /* autoでなくscrollで常にバー表示 */
-  -webkit-overflow-scrolling: touch;  /* iOS慣性スクロール */
+  overflow: scroll;
+  -webkit-overflow-scrolling: touch;
   position: relative;
+  background: #e8f4fd;
 }
 
 canvas#chart {
@@ -179,7 +180,7 @@ canvas#chart {
   align-items: center;
   gap: 4px;
   z-index: 20;
-  background: rgba(255,255,255,0.97);
+  background: rgba(255,255,255,0.95);
   border-bottom: 1px solid var(--border);
   padding: 5px 10px;
   flex-shrink: 0;
@@ -237,7 +238,7 @@ canvas#chart {
 
 /* ── SIDEBAR ── */
 .sidebar {
-  background: var(--surface);
+  background: #ffffff;
   overflow-y: auto;
   overflow-x: hidden;
   flex-shrink: 0;
@@ -250,6 +251,7 @@ canvas#chart {
 .sidebar-section {
   padding: 12px 14px;
   border-bottom: 1px solid var(--border);
+  background: #ffffff;
 }
 .sidebar-section:last-child { border-bottom: none; }
 
@@ -402,19 +404,33 @@ canvas#chart {
 #splash .splash-sub {
   font-family: 'Noto Sans JP', sans-serif;
   font-size: clamp(12px, 2vw, 18px);
-  color: rgba(255,255,255,0.85);
+  color: rgba(255,255,255,0.9);
   letter-spacing: 3px;
   margin-top: 10px;
   text-shadow: 0 1px 8px rgba(0,0,0,0.9);
 }
-#splash .splash-hint {
+#splash-btn {
+  margin-top: 40px;
+  padding: 14px 48px;
   font-family: 'IBM Plex Mono', monospace;
-  font-size: 12px;
-  color: rgba(255,255,255,0.55);
-  margin-top: 32px;
-  letter-spacing: 1px;
-  animation: blink 1.6s infinite;
+  font-size: 15px;
+  letter-spacing: 3px;
+  text-transform: uppercase;
+  color: #fff;
+  background: rgba(255,255,255,0.15);
+  border: 2px solid rgba(255,255,255,0.8);
+  border-radius: 40px;
+  cursor: pointer;
+  backdrop-filter: blur(6px);
+  transition: background 0.2s, transform 0.15s, box-shadow 0.2s;
+  display: inline-block;
+  user-select: none;
 }
+#splash-btn:hover {
+  background: rgba(255,255,255,0.3);
+  box-shadow: 0 0 24px rgba(255,255,255,0.3);
+}
+#splash-btn:active { transform: scale(0.96); }
 @keyframes blink { 0%,100%{opacity:0.4} 50%{opacity:1} }
 </style>
 </head>
@@ -426,7 +442,7 @@ canvas#chart {
   <div class="splash-text" id="splashText">
     <div class="splash-title">Psychrometrics</div>
     <div class="splash-sub">湿り空気線図 計算ツール</div>
-    <div class="splash-hint">タップして開始 / Tap to start</div>
+    <button id="splash-btn">▶ START</button>
   </div>
 </div>
 
@@ -805,7 +821,7 @@ function drawChart() {
   ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
 
   // 背景クリア
-  ctx.fillStyle = '#fff';
+  ctx.fillStyle = '#e8f4fd';
   ctx.fillRect(0, 0, W, H);
 
   // ズーム・パン適用
@@ -819,6 +835,10 @@ function drawChart() {
 
   const suff2 = f/5|0;
   const suff5 = f/6|0;
+
+  // 外枠内を白で塗りつぶし（グラフ内部を白に）
+  ctx.fillStyle = '#ffffff';
+  ctx.fillRect(geo.ox1, geo.oy2, geo.ox2 - geo.ox1, geo.oy1 - geo.oy2);
 
   // 外枠
   ctx.strokeStyle = '#222'; ctx.lineWidth = 1;
@@ -1469,10 +1489,11 @@ document.querySelectorAll('input[name="ps"]').forEach(r=>{
   const splash    = document.getElementById('splash');
   const splashImg = document.getElementById('splashImg');
   const splashTxt = document.getElementById('splashText');
+  const splashBtn = document.getElementById('splash-btn');
 
   // 画像フェードイン
   setTimeout(() => { splashImg.classList.add('visible'); }, 100);
-  // テキストフェードイン
+  // テキスト＆ボタンフェードイン
   setTimeout(() => { splashTxt.classList.add('visible'); }, 600);
 
   function closeSplash() {
@@ -1480,10 +1501,11 @@ document.querySelectorAll('input[name="ps"]').forEach(r=>{
     setTimeout(() => { splash.style.display = 'none'; }, 900);
   }
 
-  // タップ/クリックで閉じる
-  splash.addEventListener('pointerup', closeSplash);
-  // 4秒後に自動で閉じる
-  setTimeout(closeSplash, 4000);
+  // STARTボタンのみで遷移
+  splashBtn.addEventListener('pointerup', e => {
+    e.stopPropagation();
+    closeSplash();
+  });
 })();
 
 // ══════════════════════════════════════════
@@ -1492,7 +1514,7 @@ document.querySelectorAll('input[name="ps"]').forEach(r=>{
 updateMixingUI(); updateBtnStates(); resizeCanvas();
 window.addEventListener('resize', resizeCanvas);
 </script>
-<footer style="background:#1a1614; color:#ccc; font-size:11px; padding:6px 16px; text-align:center; flex-shrink:0; border-top:1px solid #333;">
+<footer style="background:#0d2137; color:#7fb3d3; font-size:11px; padding:6px 16px; text-align:center; flex-shrink:0; border-top:1px solid #1e4d7b;">
   本ツールの計算結果は参考値です。利用による損害について作者は一切の責任を負いません。&nbsp;|&nbsp;© 2025 hiroshiabe0711
 </footer>
 
